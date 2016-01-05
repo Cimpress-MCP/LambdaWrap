@@ -11,6 +11,24 @@ module LambdaWrap
 			@client = Aws::Lambda::Client.new()
 		end
 		
+		def publish_lambda_to_s3(local_lambda_file, bucket, key)
+			
+			# get s3 object
+			s3 = Aws::S3::Resource.new()
+			obj = s3.bucket(bucket).object(key)
+			
+			# upload
+			version_id = nil
+			File.open(local_lambda_file, 'rb') do |file|
+				version_id = obj.put({body: file}).version_id
+			end
+			raise 'Upload to S3 failed' if !version_id
+			
+			puts 'Uploaded object to S3 with version ' + version_id
+			return version_id
+			
+		end
+		
 		def deploy_lambda(version_id, function_name, handler)
 	
 			# create or update function
