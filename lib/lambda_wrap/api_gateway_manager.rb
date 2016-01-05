@@ -7,8 +7,18 @@ module LambdaWrap
 		
 		def initialize()
 			AwsSetup.new.validate()
-			# AWS lambda client
+			# AWS api gateway client
 			@client = Aws::APIGateway::Client.new()
+			# path to apigateway-importer jar
+			@jarpath = File.join(Dir.tmpdir, 'aws-apigateway-importer-1.0.3-SNAPSHOT-jar-with-dependencies.jar')
+		end
+		
+		def download_apigateway_importer(s3_bucket, s3_key)	
+			unless File.exist?(@jarpath)
+				puts 'Downloading aws-apigateway-importer jar'
+				s3 = Aws::S3::Client.new		
+				obj = s3.get_object(response_target:@jarpath, bucket:s3_bucket, key:s3_key)
+			end		
 		end
 		
 		def setup_apigateway(api_name, env, swagger_file)
@@ -61,7 +71,7 @@ module LambdaWrap
 			
 			raise 'API ID not provided' if !api_id
 			
-			cmd = "aws-api-import.cmd --update #{api_id} --region #{ENV['AWS_REGION']} #{swagger_file}"
+			cmd = "java -jar #{@jarpath} --update #{api_id} --region #{ENV['AWS_REGION']} #{swagger_file}"
 			raise 'API gateway not created' if !system(cmd)
 			
 		end
