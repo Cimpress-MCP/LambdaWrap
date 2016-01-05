@@ -25,7 +25,7 @@ end
 desc 'Uninstalls the gem'
 task :uninstall do
     puts "Uninstalling gem #{NAME}"
-    puts %x[gem uninstall #{NAME}]
+    puts %x[gem uninstall #{NAME} --all]
 end
 
 desc 'Installs the gem from the local source'
