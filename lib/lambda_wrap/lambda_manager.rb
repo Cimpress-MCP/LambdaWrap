@@ -11,6 +11,23 @@ module LambdaWrap
 			@client = Aws::Lambda::Client.new()
 		end
 		
+		def package(directory, zipfile, input_filenames, node_modules)
+			
+			FileUtils::mkdir_p directory
+			FileUtils::mkdir_p File.join(directory, 'node_modules')
+
+			input_filenames.each do |filename|
+				FileUtils::copy_file(File.join(filename), File.join(directory, File.basename(filename)))
+			end
+
+			node_modules.each do |dir|
+				FileUtils::cp_r(File.join('node_modules', dir), File.join(directory, 'node_modules'))
+			end
+
+			ZipFileGenerator.new(directory, zipfile).write
+			
+		end
+		
 		def publish_lambda_to_s3(local_lambda_file, bucket, key)
 			
 			# get s3 object
