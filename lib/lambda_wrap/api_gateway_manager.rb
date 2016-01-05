@@ -11,14 +11,14 @@ module LambdaWrap
 			@client = Aws::APIGateway::Client.new()
 		end
 		
-		def setup_apigateway(api_name, env)
+		def setup_apigateway(api_name, env, swagger_file)
 			
 			# ensure API is created
 			api_id = get_existing_rest_api(api_name)
 			api_id = setup_apigateway_create_rest_api(api_name) if !api_id
 			
 			# create resources
-			setup_apigateway_create_resources(api_id)
+			setup_apigateway_create_resources(api_id, swagger_file)
 			
 			# create stages
 			create_stages(api_id, env)
@@ -57,11 +57,10 @@ module LambdaWrap
 			
 		end
 		
-		def setup_apigateway_create_resources(api_id)
+		def setup_apigateway_create_resources(api_id, swagger_file)
 			
 			raise 'API ID not provided' if !api_id
 			
-			swagger_file = File.join(PWD, 'doc', 'swagger.json')
 			cmd = "aws-api-import.cmd --update #{api_id} --region #{ENV['AWS_REGION']} #{swagger_file}"
 			raise 'API gateway not created' if !system(cmd)
 			
