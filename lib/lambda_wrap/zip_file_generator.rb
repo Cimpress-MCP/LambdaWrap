@@ -1,26 +1,33 @@
 require 'rubygems'
 require 'zip'
-# This is a simple example which uses rubyzip to
-# recursively generate a zip file from the contents of
-# a specified directory. The directory itself is not
-# included in the archive, rather just its contents.
-#
-# Usage:
-# require /path/to/the/ZipFileGenerator/Class
-# directoryToZip = "/tmp/input"
-# outputFile = "/tmp/out.zip"
-# zf = ZipFileGenerator.new(directoryToZip, outputFile)
-# zf.write()
 
 module LambdaWrap
 
+    ##
+    # Allows to easily zip a directory recursively. It's intended for gem internal use only.
+    #
+    # From the original example:
+    # This is a simple example which uses rubyzip to
+    # recursively generate a zip file from the contents of
+    # a specified directory. The directory itself is not
+    # included in the archive, rather just its contents.
+    #
+    # Usage:
+    # require /path/to/the/ZipFileGenerator/Class
+    # directoryToZip = "/tmp/input"
+    # outputFile = "/tmp/out.zip"
+    # zf = ZipFileGenerator.new(directoryToZip, outputFile)
+    # zf.write()
     class ZipFileGenerator
+        
+        ##
         # Initialize with the directory to zip and the location of the output archive.
         def initialize(input_dir, output_file)
             @input_dir = input_dir
             @output_file = output_file
         end
         
+        ##
         # Zip the input directory.
         def write
             entries = Dir.entries(@input_dir) - %w(. ..)

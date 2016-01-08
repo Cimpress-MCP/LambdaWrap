@@ -3,14 +3,34 @@ require_relative 'aws_setup'
 
 module LambdaWrap
 	
+	##
+	# The DynamoDBManager simplifies setting up and destroying a DynamoDB database.
+	#
+	# Note: In case an environment specific DynamoDB tablename such as +<baseTableName>-production+ should be used, then
+	# it has to be injected directly to the methods since not all environments necessarily need separated databases. 
 	class DynamoDbManager
 
+		##
+		# The constructor does some basic setup
+		# * Validating basic AWS configuration
+		# * Creating the underlying client to interact with the AWS SDK.
 		def initialize()
 			AwsSetup.new.validate()
 			# AWS dynamodb client
 			@client = Aws::DynamoDB::Client.new()
 		end
 		
+		##
+		# Publishes the database and awaits until it is fully available. If the table already exists, it only adjusts the read/write
+		# capacities upwards (it doesn't downgrade them to avoid a production environment being impacted with a default setting of an
+		# automated script).
+		#
+		# *Arguments*
+		# [table_name]				The table name of the dynamoDB to be created.
+		# [attribute_definitions]	The dynamoDB attribute definitions to be used when the table is created. See the AWS documentation for details.
+		# [key_schema]				The dynamoDB key definitions to be used when the table is created. See the AWS documentation for details.
+		# [read_capacity]			The read capacity to configure for the dynamoDB table.
+		# [write_capacity]			The write capacity to configure for the dynamoDB table.
 		def publish_database(table_name, attribute_definitions, key_schema, read_capacity, write_capacity)
 			
 			has_updates = false
@@ -57,6 +77,11 @@ module LambdaWrap
 		
 		end
 		
+		##
+		# Deletes a DynamoDB table. It does not wait until the table has been deleted.
+		#
+		# *Arguments*
+		# [table_name]	The dynamoDB table name to delete.
 		def delete_database(table_name)
 			
 			begin
@@ -69,6 +94,11 @@ module LambdaWrap
 			
 		end
 		
+		##
+		# Awaits a given status of a table.
+		#
+		# *Arguments*
+		# [table_name]	The dynamoDB table name to watch until it reaches an active status.
 		def wait_until_table_available(table_name)
 		
 			max_attempts = 24
@@ -89,6 +119,8 @@ module LambdaWrap
 			end
 		
 		end
+		
+		private :wait_until_table_available
 
 	end
 
