@@ -1,8 +1,8 @@
 # LambdaWrap
 
-A ruby library to simplify deployment of a serverless based on AWS Lambda, AWS API Gateway and AWS DynamoDB.
+A ruby library to simplify deployment of a serverless web service based on AWS Lambda, AWS API Gateway and AWS DynamoDB.
 
-LambdaWrap is a very simple way to manage and automate deployment of AWS Lambda functions and related functionality. It is targeted to simple use cases and focuses only on deployment automation. It's primary goal is to support developers who want to be able to spend less than 1h on infrastructure and focus on the actual value deliver of their web service.
+LambdaWrap is a very simple way to manage and automate deployment of AWS Lambda functions and related functionality. It is targeted to simple use cases and focuses only on deployment automation. Its primary goal is to support developers who want to be able to spend less than 1h on infrastructure and focus on the actual value delivered by their web service.
 
 Technically, it uses the [AWS SDK](https://aws.amazon.com/sdk-for-ruby/) directly and avoids complexities such as [AWS Cloudformation](https://aws.amazon.com/cloudformation/). Due to its focus on simplifying deployment, it has no built in support to run the functions locally, such as [serverless](https://github.com/serverless/serverless) has.
 
