@@ -21,6 +21,7 @@ module LambdaWrap
 			@client = Aws::APIGateway::Client.new()
 			# path to apigateway-importer jar
 			@jarpath = File.join(Dir.tmpdir, 'aws-apigateway-importer-1.0.3-SNAPSHOT-jar-with-dependencies.jar')
+			@versionpath = File.join(Dir.tmpdir, 'aws-apigateway-importer-1.0.3-SNAPSHOT-jar-with-dependencies.s3version')
 		end
 		
 		##
@@ -32,12 +33,23 @@ module LambdaWrap
 		# *Arguments*
 		# [s3_bucket]		An S3 bucket from where the aws-apigateway-importer binary can be downloaded.
 		# [s3_key]			The path (key) to the aws-apigateay-importer binary on the s3 bucket.
-		def download_apigateway_importer(s3_bucket, s3_key)	
-			unless File.exist?(@jarpath)
-				puts 'Downloading aws-apigateway-importer jar'
-				s3 = Aws::S3::Client.new		
+		def download_apigateway_importer(s3_bucket, s3_key)
+			
+			s3 = Aws::S3::Client.new
+			
+			# current version
+			current_s3_version = File.open(@versionpath, 'rb').read if File.exists?(@versionpath)
+			
+			# online s3 version
+			desired_s3_version = s3.head_object(bucket:s3_bucket, key:s3_key).version_id
+			
+			# compare local with remote version
+			if current_s3_version != desired_s3_version || !File.exists?(@jarpath)
+				puts "Downloading aws-apigateway-importer jar with S3 version #{desired_s3_version}"
 				obj = s3.get_object(response_target:@jarpath, bucket:s3_bucket, key:s3_key)
-			end		
+				File.write(@versionpath, desired_s3_version)
+			end
+			
 		end
 		
 		##
