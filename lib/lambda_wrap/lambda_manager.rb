@@ -79,7 +79,8 @@ module LambdaWrap
 		# [function_name]	The name of the lambda function.
 		# [handler]			The handler that should be executed for this lambda function.
 		# [lambda_role]		The arn of the IAM role that should be used when executing the lambda function. 
-		def deploy_lambda(bucket, key, version_id, function_name, handler, lambda_role, lambda_description)
+		# [lambda_description]		The description of the lambda function. 
+		def deploy_lambda(bucket, key, version_id, function_name, handler, lambda_role, lambda_description = "Deployed with LambdaWrap")
 	
 			# create or update function
 			
