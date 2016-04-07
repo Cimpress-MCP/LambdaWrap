@@ -79,7 +79,8 @@ module LambdaWrap
 		# [function_name]	The name of the lambda function.
 		# [handler]			The handler that should be executed for this lambda function.
 		# [lambda_role]		The arn of the IAM role that should be used when executing the lambda function. 
-		def deploy_lambda(bucket, key, version_id, function_name, handler, lambda_role)
+		# [lambda_description]		The description of the lambda function. 
+		def deploy_lambda(bucket, key, version_id, function_name, handler, lambda_role, lambda_description = "Deployed with LambdaWrap")
 	
 			# create or update function
 			
@@ -90,7 +91,7 @@ module LambdaWrap
 				func_version = func_config.version
 				raise 'Error while publishing existing lambda function ' + function_name if !func_config.version
 			rescue Aws::Lambda::Errors::ResourceNotFoundException
-				func_config = @client.create_function({function_name: function_name, runtime: 'nodejs', role: lambda_role, handler: handler, code: { s3_bucket: bucket, s3_key: key }, timeout: 5, memory_size: 128, publish: true, description: 'created by an automated script'}).data
+				func_config = @client.create_function({function_name: function_name, runtime: 'nodejs', role: lambda_role, handler: handler, code: { s3_bucket: bucket, s3_key: key }, timeout: 5, memory_size: 128, publish: true, description: lambda_description}).data
 				puts func_config
 				func_version = func_config.version
 				raise 'Error while publishing new lambda function ' + function_name if !func_config.version
