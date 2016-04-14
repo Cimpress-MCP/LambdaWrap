@@ -91,7 +91,7 @@ module LambdaWrap
 				func_version = func_config.version
 				raise 'Error while publishing existing lambda function ' + function_name if !func_config.version
 			rescue Aws::Lambda::Errors::ResourceNotFoundException
-				func_config = @client.create_function({function_name: function_name, runtime: 'nodejs', role: lambda_role, handler: handler, code: { s3_bucket: bucket, s3_key: key }, timeout: 5, memory_size: 128, publish: true, description: lambda_description}).data
+				func_config = @client.create_function({function_name: function_name, runtime: 'nodejs4.3', role: lambda_role, handler: handler, code: { s3_bucket: bucket, s3_key: key }, timeout: 5, memory_size: 128, publish: true, description: lambda_description}).data
 				puts func_config
 				func_version = func_config.version
 				raise 'Error while publishing new lambda function ' + function_name if !func_config.version
