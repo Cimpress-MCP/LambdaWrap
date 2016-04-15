@@ -60,11 +60,12 @@ module LambdaWrap
 		# [api_name]		The name of the API to which the swagger file should be applied to.
 		# [env]				The environment where it should be published (which is matching an API gateway stage)
 		# [swagger_file]	A handle to a swagger file that should be used by aws-apigateway-importer
-		def setup_apigateway(api_name, env, swagger_file)
+		# [api_description]	The description of the API to be displayed. 
+		def setup_apigateway(api_name, env, swagger_file, api_description = "Deployed with LambdaWrap")
 			
 			# ensure API is created
 			api_id = get_existing_rest_api(api_name)
-			api_id = setup_apigateway_create_rest_api(api_name) if !api_id
+			api_id = setup_apigateway_create_rest_api(api_name, api_description) if !api_id
 			
 			# create resources
 			setup_apigateway_create_resources(api_id, swagger_file)
@@ -114,10 +115,10 @@ module LambdaWrap
 		# 
 		# *Arguments*
 		# [api_name]		The name of the API to be created
-		def setup_apigateway_create_rest_api(api_name)
+		def setup_apigateway_create_rest_api(api_name, api_description)
 			
 			puts 'Creating API with name ' + api_name
-			api = @client.create_rest_api({name: api_name})
+			api = @client.create_rest_api({name: api_name, description: api_description})
 			
 			return api.id
 			
