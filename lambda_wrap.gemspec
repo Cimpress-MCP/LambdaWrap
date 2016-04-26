@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
   s.summary     = "Easy deployment of AWS Lambda functions and dependencies."
   s.description = "This gem wraps the AWS SDK to simplify deployment of AWS Lambda functions backed by API Gateway and DynamoDB."
-  s.authors     = ["Markus Thurner", "Dorota Ruta"]
+  s.authors     = ["Markus Thurner", "Dorota Ruta", "Ted Armstrong"]
   s.files       = Dir.glob("{bin,lib}/{**}/{*}", File::FNM_DOTMATCH).select{|f| !(File.basename(f)).match(/^\.+$/)}
   s.license       = 'Apache-2.0'
   s.require_paths = ['lib']
