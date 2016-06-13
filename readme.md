@@ -60,14 +60,14 @@ task :deploy, :environment do |t, args|
   ### the description, subnet_ids, and security_groups are optional.
   lambda_functions = [
     {
-      "name": "Function1",
-      "handler": "func1.handler",
-      "description": "Function1 Description"
+      "name" => "Function1",
+      "handler" => "func1.handler",
+      "description" => "Function1 Description"
     },
     {
-      "name": "Function2",
-      "handler": "func2.handler",
-      "description": "Function2 Description"
+      "name" => "Function2",
+      "handler" => "func2.handler",
+      "description" => "Function2 Description"
     }
   ]
 
@@ -85,7 +85,16 @@ task :deploy, :environment do |t, args|
 
   lambda_functions.each do |f|
     lambdaMgr = LambdWrap::LambdaManager.new()
-    func_version = lambdaMgr.deploy_lambda ('s3_bucket_name', 's3_key/lambda/service.zip', s3_version_id, f['name'], f['handler'], lambda_role_arn, f['description'], subnet_ids, security_groups)
+    func_version = lambdaMgr.deploy_lambda(
+      's3_bucket_name',
+      's3_key/lambda/service.zip',
+      s3_version_id,
+      f['name'],
+      f['handler'],
+      lambda_role_arn,
+      f['description'],
+      subnet_ids,
+      security_groups)
     lambdaMgr.create_alias(f['name'], func_version, env)
   end
 
