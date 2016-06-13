@@ -1,5 +1,6 @@
 require 'rake'
 require 'rake/clean'
+require 'bundler/setup'
 require 'rubygems/package_task'
 require_relative 'version'
 
@@ -17,9 +18,15 @@ task :clean do
 end
 
 desc 'Creates the ruby gem'
-task :create => :clean do
+task create: [:clean] do
     puts "Creating gem with version #{VERSION}"
     puts %x[gem build lambda_wrap.gemspec]
+end
+
+task test: :rubocop
+
+task :rubocop do
+  sh `rubocop`
 end
 
 desc 'Uninstalls the gem'
@@ -43,7 +50,7 @@ end
 desc 'Publishes the ruby gem'
 task :publish => :create do
     raise 'Not allowed publishing the gem if version is 0.0.0. Are you on a release branch?' if VERSION.to_s == '0.0.0'
-    
+
     gemfile = Dir.glob('*.gem').first()
     puts "Publishing gem #{gemfile}"
     puts %x[gem push #{gemfile}]
