@@ -7,6 +7,7 @@ Gem::Specification.new do |s|
   s.summary     = "Easy deployment of AWS Lambda functions and dependencies."
   s.description = "This gem wraps the AWS SDK to simplify deployment of AWS Lambda functions backed by API Gateway and DynamoDB."
   s.authors     = ["Markus Thurner", "Dorota Ruta", "Ted Armstrong"]
+  s.homepage    = "https://github.com/Cimpress-MCP/LambdaWrap"
   s.files       = Dir.glob("{bin,lib}/{**}/{*}", File::FNM_DOTMATCH).select{|f| !(File.basename(f)).match(/^\.+$/)}
   s.license       = 'Apache-2.0'
   s.require_paths = ['lib']
