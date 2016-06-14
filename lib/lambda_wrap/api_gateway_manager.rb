@@ -114,7 +114,7 @@ module LambdaWrap
     def setup_apigateway_create_resources(api_id, swagger_file)
       raise 'API ID not provided' unless api_id
 
-      cmd = "java -jar #{@jarpath} --update #{api_id} --region #{ENV['AWS_REGION']} #{swagger_file}"
+      cmd = "java -jar #{@jarpath} --update #{api_id} #{swagger_file}"
       raise 'API gateway not created' unless system(cmd)
     end
 
