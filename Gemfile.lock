@@ -34,6 +34,7 @@ GEM
     zip (2.0.2)
 
 PLATFORMS
+  ruby
   x86-mingw32
 
 DEPENDENCIES
@@ -42,4 +43,4 @@ DEPENDENCIES
   rubocop!
 
 BUNDLED WITH
-   1.10.6
+   1.11.2

@@ -26,7 +26,7 @@ end
 task test: :rubocop
 
 task :rubocop do
-  sh `rubocop`
+  `rubocop`
 end
 
 desc 'Uninstalls the gem'
@@ -36,7 +36,7 @@ task :uninstall do
 end
 
 desc 'Installs the gem from the local source'
-task installlocal: [:uninstall, :create] do
+task installlocal: [:uninstall, :create, :test] do
   gemfile = Dir.glob('*.gem').first
   puts `gem install #{gemfile}`
 end
@@ -47,7 +47,7 @@ task :install do
 end
 
 desc 'Publishes the ruby gem'
-task publish: :create do
+task publish: [:create, :test] do
   if VERSION.to_s == '0.0.0'
     raise 'Not allowed publishing the gem if version is 0.0.0.'\
       'Are you on a release branch?'
