@@ -1,5 +1,4 @@
 require 'aws-sdk'
-require_relative 'aws_setup'
 
 module LambdaWrap
   ##
@@ -12,7 +11,6 @@ module LambdaWrap
     # * Validating basic AWS configuration
     # * Creating the underlying client to interace with the AWS SDK
     def initialize
-      AwsSetup.new.validate
       # AWS lambda client
       @client = Aws::Lambda::Client.new
     end

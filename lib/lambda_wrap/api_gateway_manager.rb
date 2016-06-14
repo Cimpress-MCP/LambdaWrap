@@ -1,5 +1,4 @@
 require 'aws-sdk'
-require_relative 'aws_setup'
 
 module LambdaWrap
   # The ApiGatewayManager simplifies downloading the aws-apigateway-importer binary,
@@ -13,7 +12,6 @@ module LambdaWrap
     # * Creating the underlying client to interact with the AWS SDK.
     # * Defining the temporary path of the api-gateway-importer jar file
     def initialize
-      AwsSetup.new.validate
       # AWS api gateway client
       @client = Aws::APIGateway::Client.new
       # path to apigateway-importer jar
