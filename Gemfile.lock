@@ -1,0 +1,46 @@
+PATH
+  remote: .
+  specs:
+    lambda_wrap (0.0.0)
+      aws-sdk (~> 2)
+      zip (~> 2)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    ast (2.3.0)
+    aws-sdk (2.3.13)
+      aws-sdk-resources (= 2.3.13)
+    aws-sdk-core (2.3.13)
+      jmespath (~> 1.0)
+    aws-sdk-resources (2.3.13)
+      aws-sdk-core (= 2.3.13)
+    jmespath (1.2.4)
+      json_pure (>= 1.8.1)
+    json_pure (1.8.3)
+    parser (2.3.1.2)
+      ast (~> 2.2)
+    powerpack (0.1.1)
+    rainbow (2.1.0)
+    rake (11.2.2)
+    rubocop (0.40.0)
+      parser (>= 2.3.1.0, < 3.0)
+      powerpack (~> 0.1)
+      rainbow (>= 1.99.1, < 3.0)
+      ruby-progressbar (~> 1.7)
+      unicode-display_width (~> 1.0, >= 1.0.1)
+    ruby-progressbar (1.8.1)
+    unicode-display_width (1.0.5)
+    zip (2.0.2)
+
+PLATFORMS
+  ruby
+  x86-mingw32
+
+DEPENDENCIES
+  lambda_wrap!
+  rake!
+  rubocop!
+
+BUNDLED WITH
+   1.11.2

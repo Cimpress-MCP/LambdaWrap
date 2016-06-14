@@ -1,0 +1,20 @@
+LineLength:
+  Enabled: true
+  Max: 120
+MethodLength:
+  Enabled: true
+  Max: 30
+AbcSize:
+  Enabled: true
+  Max: 50
+CyclomaticComplexity:
+  Enabled: true
+  Max: 15
+PerceivedComplexity:
+  Enabled: false
+RegexpLiteral:
+  Enabled: false
+  EnforcedStyle: slashes
+  SupportedStyles: slashes
+ParameterLists:
+  Max: 10
