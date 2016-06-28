@@ -3,7 +3,7 @@ PATH
   specs:
     lambda_wrap (0.0.0)
       aws-sdk (~> 2)
-      zip (~> 2)
+      rubyzip (~> 1.2)
 
 GEM
   remote: https://rubygems.org/
@@ -30,8 +30,8 @@ GEM
       ruby-progressbar (~> 1.7)
       unicode-display_width (~> 1.0, >= 1.0.1)
     ruby-progressbar (1.8.1)
+    rubyzip (1.2.0)
     unicode-display_width (1.0.5)
-    zip (2.0.2)
 
 PLATFORMS
   ruby
@@ -43,4 +43,4 @@ DEPENDENCIES
   rubocop!
 
 BUNDLED WITH
-   1.11.2
+   1.12.5

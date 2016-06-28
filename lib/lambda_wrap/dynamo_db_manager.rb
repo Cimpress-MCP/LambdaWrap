@@ -1,5 +1,4 @@
 require 'aws-sdk'
-require_relative 'aws_setup'
 
 module LambdaWrap
   # The DynamoDBManager simplifies setting up and destroying a DynamoDB database.
@@ -12,7 +11,6 @@ module LambdaWrap
     # * Validating basic AWS configuration
     # * Creating the underlying client to interact with the AWS SDK.
     def initialize
-      AwsSetup.new.validate
       # AWS dynamodb client
       @client = Aws::DynamoDB::Client.new
     end
