@@ -54,19 +54,23 @@ module LambdaWrap
     # [env]				The environment where it should be published (which is matching an API gateway stage)
     # [swagger_file]	A handle to a swagger file that should be used by aws-apigateway-importer
     # [api_description]	The description of the API to be displayed.
-    def setup_apigateway(api_name, env, swagger_file, api_description = 'Deployed with LambdaWrap')
+    # [stage_variables] A Hash of stage variables to be deployed with the stage. Adds an 'environment' by default.
+    # [region] The region to deploy the API. Defaults to what is set as an environment variable.
+    def setup_apigateway(api_name, env, swagger_file, api_description = 'Deployed with LambdaWrap',
+                         stage_variables = {}, region = ENV['AWS_REGION'])
       # ensure API is created
       api_id = get_existing_rest_api(api_name)
       api_id = setup_apigateway_create_rest_api(api_name, api_description) unless api_id
 
       # create resources
-      setup_apigateway_create_resources(api_id, swagger_file)
+      setup_apigateway_create_resources(api_id, swagger_file, region)
 
       # create stages
-      create_stages(api_id, env)
+      stage_variables.store('environment', env)
+      create_stages(api_id, env, stage_variables)
 
       # return URI of created stage
-      "https://#{api_id}.execute-api.#{ENV['AWS_REGION']}.amazonaws.com/#{env}/"
+      "https://#{api_id}.execute-api.#{region}.amazonaws.com/#{env}/"
     end
 
     ##
@@ -111,10 +115,10 @@ module LambdaWrap
     # *Arguments*
     # [api_id]			The AWS ApiGateway id where the swagger file should be applied to.
     # [swagger_file]	The handle to a swagger definition file that should be imported into API Gateway
-    def setup_apigateway_create_resources(api_id, swagger_file)
+    def setup_apigateway_create_resources(api_id, swagger_file, region)
       raise 'API ID not provided' unless api_id
 
-      cmd = "java -jar #{@jarpath} --update #{api_id} #{swagger_file}"
+      cmd = "java -jar #{@jarpath} --update #{api_id} --region #{region} #{swagger_file}"
       raise 'API gateway not created' unless system(cmd)
     end
 
@@ -124,11 +128,11 @@ module LambdaWrap
     # *Arguments*
     # [api_id]			The AWS ApiGateway id where the stage should be created at.
     # [env]				The environment (which matches the stage in API Gateway) to create.
-    def create_stages(api_id, env)
+    def create_stages(api_id, env, stage_variables)
       deployment_description = 'Deployment of service to ' + env
       deployment = @client.create_deployment(
         rest_api_id: api_id, stage_name: env, cache_cluster_enabled: false, description: deployment_description,
-        variables: { 'environment' => env }
+        variables: stage_variables
       ).data
       puts deployment
     end
