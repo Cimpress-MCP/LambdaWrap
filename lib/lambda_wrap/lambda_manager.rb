@@ -89,12 +89,16 @@ module LambdaWrap
         func_version = func_config.version
         raise 'Error while publishing existing lambda function ' + function_name unless func_version
       rescue Aws::Lambda::Errors::ResourceNotFoundException
+        # check if vpc_subnet_ids and vpc_security_group_ids are empty or not and set the vpc_config accordingly.
+        vpc_Configuration = nil
+        vpc_Configuration = { subnet_ids: vpc_subnet_ids, security_group_ids: vpc_security_group_ids } unless (vpc_subnet_ids.empty? && vpc_security_group_ids.empty?)
+
         # if we cannot find it, we have to create it instead of updating it
         func_config = @client.create_function(
           function_name: function_name, runtime: 'nodejs4.3', role: lambda_role,
           handler: handler, code: { s3_bucket: bucket, s3_key: key }, timeout: 5, memory_size: 128, publish: true,
           description: lambda_description,
-          vpc_config: { subnet_ids: vpc_subnet_ids, security_group_ids: vpc_security_group_ids }
+          vpc_config: vpc_Configuration
         ).data
         puts func_config
         func_version = func_config.version
