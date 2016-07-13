@@ -90,7 +90,7 @@ module LambdaWrap
         raise 'Error while publishing existing lambda function ' + function_name unless func_version
       rescue Aws::Lambda::Errors::ResourceNotFoundException
         # check if vpc_subnet_ids and vpc_security_group_ids are empty and set accordingly to null
-        vpc_Configuration= []
+        vpc_Configuration= {}
         if (vpc_subnet_ids.empty? && vpc_security_group_ids.empty?)
             vpc_Configuration = nil
         else
