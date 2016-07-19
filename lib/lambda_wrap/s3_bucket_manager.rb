@@ -2,7 +2,7 @@ require 'aws-sdk'
 
 module LambdaWrap
   ##
-  # The S3BucketManager simplifies would have functions to help add policies etcc to S3 bucket.
+  # The S3BucketManager would have functions to help add policies, CORS etc to S3 bucket.
   class S3BucketManager
     #
     # The constructor creates an instance of s3 bucket
