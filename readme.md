@@ -24,8 +24,10 @@ LambdaWrap makes several assumptions how you structure your project, mainly to s
 6. Have java in your path to execute aws-apigateway-importer.
 7. A versioned S3 bucket to host the Lambda package.
 
-### Using LambdaWrap
+### S3BucketManager
+The S3BucketManager class is used to add functionalities or properties to the S3 bucket. These functionalities can include Policies, CORS etc. An S3 bucket should be present in AWS as mentioned in the Prerequisites section.
 
+### Using LambdaWrap
 See the documentation or source code for detailed usage. But the following lines provide an example how a rakefile can look like:
 
 ```ruby
