@@ -145,11 +145,11 @@ module LambdaWrap
     # [env]				The environment (which matches the stage in API Gateway) to delete.
     def delete_stage(api_id, env)
       begin
-  			@client.delete_stage({rest_api_id: api_id, stage_name: env})
-  				puts 'Deleted API gateway stage ' + env
-  		rescue Aws::APIGateway::Errors::NotFoundException
-  			puts 'API Gateway stage ' + env + ' does not exist. Nothing to delete.'
-  		end
+        @client.delete_stage({rest_api_id: api_id, stage_name: env})
+        puts 'Deleted API gateway stage ' + env
+      rescue Aws::APIGateway::Errors::NotFoundException
+        puts 'API Gateway stage ' + env + ' does not exist. Nothing to delete.'
+      end
     end
 
     private :get_existing_rest_api, :setup_apigateway_create_rest_api, :setup_apigateway_create_resources,
