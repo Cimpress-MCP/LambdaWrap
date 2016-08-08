@@ -3,6 +3,8 @@ require 'aws-sdk'
 module LambdaWrap
   # The ApiGatewayManager simplifies downloading the aws-apigateway-importer binary,
   # importing a {swagger configuration}[http://swagger.io], and managing API Gateway stages.
+  # Added functionality to create APIGateway deom Swagger file. Thsi API is useful for gateway's having
+  #custom authorization.
 
   # Note: The concept of an environment of the LambdaWrap gem matches a stage in AWS ApiGateway terms.
   class ApiGatewayManager
@@ -151,6 +153,49 @@ module LambdaWrap
         puts 'API Gateway stage ' + env + ' does not exist. Nothing to delete.'
       end
     end
+
+    # Generate or Update the API Gateway by using the swagger file.
+    # *Arguments*
+    # [api_name] API Gateway name
+    # [local_swagger_file] Path of the local swagger file
+    # [env] Environment
+    def setup_apigateway_by_swagger_file(api_name, local_swagger_file, env)
+
+      #If API gateway with the name is alaredy present then update it else create a new one
+      apis = @client.get_rest_apis(limit: 500).data
+      api = apis.items.select { |a| a.name == api_name }.first
+      swagger_file_content =  File.read(local_swagger_file)
+
+      gateway_response = nil
+      if (api.nil?)
+        gateway_response =  @client.import_rest_api(fail_on_warnings: false, body: swagger_file_content)
+      else
+        gateway_response =  @client.put_rest_api(rest_api_id: api.id, mode: 'merge', fail_on_warnings: false, body: swagger_file_content)
+      end
+
+      if (gateway_response.nil? && gateway_response.id.nil?)
+        raise "Failed to create API gateway with name #{api_name}"
+      else
+        if (api.nil?)
+          puts "Created api gateway #{api_name} having id #{gateway_response.id}"
+        else
+          puts "Updated api gateway #{api_name} having id #{gateway_response.id}"
+        end
+      end
+
+      #Deploy the service
+      stage_variables = {}
+      deployment_description = 'Deployment of service to ' + env
+      stage_variables.store('environment', env)
+      create_stages(gateway_response.id, env, stage_variables)
+
+      service_uri = "https://#{gateway_response.id}.execute-api.#{ENV['AWS_REGION']}.amazonaws.com/#{env}/"
+      puts "Service deployed at #{service_uri}"
+
+      return service_uri
+
+    end
+
 
     private :get_existing_rest_api, :setup_apigateway_create_rest_api, :setup_apigateway_create_resources,
             :create_stages, :delete_stage
