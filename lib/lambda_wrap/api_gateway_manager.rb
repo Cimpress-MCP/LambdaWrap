@@ -159,24 +159,25 @@ module LambdaWrap
     # [api_name] API Gateway name
     # [local_swagger_file] Path of the local swagger file
     # [env] Environment
-    def setup_apigateway_by_swagger_file(api_name, local_swagger_file, env)
+    def setup_apigateway_by_swagger_file(api_name, local_swagger_file, env, stage_variables = {})
 
-      #If API gateway with the name is alaredy present then update it else create a new one
-      apis = @client.get_rest_apis(limit: 500).data
-      api = apis.items.select { |a| a.name == api_name }.first
+      #If API gateway with the name is already present then update it else create a new one
+      api_id = get_existing_rest_api(api_name)
       swagger_file_content =  File.read(local_swagger_file)
 
       gateway_response = nil
-      if (api.nil?)
+      if (api_id.nil?)
+        #Create a new APIGateway
         gateway_response =  @client.import_rest_api(fail_on_warnings: false, body: swagger_file_content)
       else
-        gateway_response =  @client.put_rest_api(rest_api_id: api.id, mode: 'merge', fail_on_warnings: false, body: swagger_file_content)
+        #Update the exsiting APIgateway. By Merge the exsisting gateway will be merged with the new one supplied in teh Swagger file.
+        gateway_response =  @client.put_rest_api(rest_api_id: api_id, mode: 'merge', fail_on_warnings: false, body: swagger_file_content)
       end
 
       if (gateway_response.nil? && gateway_response.id.nil?)
         raise "Failed to create API gateway with name #{api_name}"
       else
-        if (api.nil?)
+        if (api_id.nil?)
           puts "Created api gateway #{api_name} having id #{gateway_response.id}"
         else
           puts "Updated api gateway #{api_name} having id #{gateway_response.id}"
@@ -184,7 +185,6 @@ module LambdaWrap
       end
 
       #Deploy the service
-      stage_variables = {}
       deployment_description = 'Deployment of service to ' + env
       stage_variables.store('environment', env)
       create_stages(gateway_response.id, env, stage_variables)
