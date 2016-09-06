@@ -75,9 +75,10 @@ module LambdaWrap
     # [vpc_subnet_ids]  A list of subnet ids for the lambda's VPC configuration. All subnets must be on the same VPC.
     # [vpc_security_group_ids]  A list of security group ids for the lambda's VPC configuration. All of the
     #                           security_group_ids must be on the same VPC.
+    # [runtime] The runtime the code is written for.
     def deploy_lambda(
-      bucket, key, version_id, function_name, handler, lambda_role,
-      lambda_description = 'Deployed with LambdaWrap', vpc_subnet_ids = [], vpc_security_group_ids = []
+      bucket, key, version_id, function_name, handler, lambda_role, lambda_description = 'Deployed with LambdaWrap',
+      vpc_subnet_ids = [], vpc_security_group_ids = [], runtime = 'nodejs4.3'
     )
       # create or update function
 
@@ -95,7 +96,7 @@ module LambdaWrap
 
         # if we cannot find it, we have to create it instead of updating it
         func_config = @client.create_function(
-          function_name: function_name, runtime: 'nodejs4.3', role: lambda_role,
+          function_name: function_name, runtime: runtime, role: lambda_role,
           handler: handler, code: { s3_bucket: bucket, s3_key: key }, timeout: 5, memory_size: 128, publish: true,
           description: lambda_description,
           vpc_config: vpc_Configuration
