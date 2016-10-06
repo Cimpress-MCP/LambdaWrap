@@ -84,8 +84,13 @@ module LambdaWrap
 
       begin
         @client.get_function(function_name: function_name)
-        func_config = @client.update_function_code(function_name: function_name, s3_bucket: bucket, s3_key: key,
-                                                   s3_object_version: version_id, publish: true).data
+        @client.update_function_code(function_name: function_name, s3_bucket: bucket, s3_key: key,
+                                     s3_object_version: version_id, publish: true).data
+        vpc_configuration = { subnet_ids: vpc_subnet_ids, security_group_ids: vpc_security_group_ids } unless (vpc_subnet_ids.empty? && vpc_security_group_ids.empty?)
+        func_config = @client.update_function_configuration(function_name: function_name, role: lambda_role, runtime: runtime,
+          handler: handler, timeout: 5, memory_size: 128,
+          description: lambda_description,
+          vpc_config: vpc_configuration).data
         puts func_config
         func_version = func_config.version
         raise 'Error while publishing existing lambda function ' + function_name unless func_version
