@@ -59,7 +59,7 @@ module LambdaWrap
     # [stage_variables] A Hash of stage variables to be deployed with the stage. Adds an 'environment' by default.
     # [region] The region to deploy the API. Defaults to what is set as an environment variable.
     def setup_apigateway(api_name, env, swagger_file, api_description = 'Deployed with LambdaWrap',
-                         stage_variables = {}, region = ENV['AWS_REGION'])
+                         stage_variables = {}, region = ENV['AWS_DEFAULT_REGION'])
       # ensure API is created
       api_id = get_existing_rest_api(api_name)
       api_id = setup_apigateway_create_rest_api(api_name, api_description) unless api_id
