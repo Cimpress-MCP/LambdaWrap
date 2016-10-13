@@ -23,6 +23,7 @@ task create: [:clean] do
   puts `gem build lambda_wrap.gemspec`
 end
 
+desc 'Runs Rubocop.'
 task test: :rubocop
 
 task :rubocop do

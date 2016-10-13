@@ -76,22 +76,27 @@ module LambdaWrap
     # [vpc_security_group_ids]  A list of security group ids for the lambda's VPC configuration. All of the
     #                           security_group_ids must be on the same VPC.
     # [runtime] The runtime the code is written for.
+    # [timeout] The integer value of seconds until the lambda timesout. Minimum 1, Maximum 300
+    # [memory_size] The Memory/ProcessingPower allocated for the Lambda. Minimum 128. Maximum 1536. Only accepts
+    #               integers in multiples of 64.
     def deploy_lambda(
       bucket, key, version_id, function_name, handler, lambda_role, lambda_description = 'Deployed with LambdaWrap',
-      vpc_subnet_ids = [], vpc_security_group_ids = [], runtime = 'nodejs4.3'
+      vpc_subnet_ids = [], vpc_security_group_ids = [], runtime = 'nodejs4.3', timeout = 5, memory_size = 128
     )
       # create or update function
 
       begin
         @client.get_function(function_name: function_name)
-        func_config = @client.update_function_code(function_name: function_name, s3_bucket: bucket, s3_key: key,
-                                                   s3_object_version: version_id, publish: true).data
-        puts func_config
         vpc_configuration = { subnet_ids: vpc_subnet_ids, security_group_ids: vpc_security_group_ids } unless (vpc_subnet_ids.empty? && vpc_security_group_ids.empty?)
         func_config = @client.update_function_configuration(function_name: function_name, role: lambda_role, runtime: runtime,
-                                                            handler: handler, timeout: 5, memory_size: 128,
+                                                            handler: handler, timeout: timeout, memory_size: memory_size,
                                                             description: lambda_description,
                                                             vpc_config: vpc_configuration).data
+        puts func_config
+
+        func_config = @client.update_function_code(function_name: function_name, s3_bucket: bucket, s3_key: key,
+                                                   s3_object_version: version_id, publish: true).data
+
         puts func_config
         func_version = func_config.version
         raise 'Error while publishing existing lambda function ' + function_name unless func_version
@@ -103,7 +108,7 @@ module LambdaWrap
         # if we cannot find it, we have to create it instead of updating it
         func_config = @client.create_function(
           function_name: function_name, runtime: runtime, role: lambda_role,
-          handler: handler, code: { s3_bucket: bucket, s3_key: key }, timeout: 5, memory_size: 128, publish: true,
+          handler: handler, code: { s3_bucket: bucket, s3_key: key }, timeout: timeout, memory_size: memory_size, publish: true,
           description: lambda_description,
           vpc_config: vpc_Configuration
         ).data
@@ -114,6 +119,7 @@ module LambdaWrap
 
       add_api_gateway_permissions(function_name, nil)
 
+      # return the version of the new code, not the config.
       func_version
     end
 
