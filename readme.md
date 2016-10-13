@@ -64,12 +64,16 @@ task :deploy, :environment do |t, args|
     {
       "name" => "Function1",
       "handler" => "func1.handler",
-      "description" => "Function1 Description"
+      "description" => "Function1 Description",
+      "timeout" => 15,
+      "memory_size" => 256
     },
     {
       "name" => "Function2",
       "handler" => "func2.handler",
-      "description" => "Function2 Description"
+      "description" => "Function2 Description",
+      "timeout" => 5,
+      "memory_size" => 128
     }
   ]
 
@@ -96,7 +100,10 @@ task :deploy, :environment do |t, args|
       lambda_role_arn,
       f['description'],
       subnet_ids,
-      security_groups)
+      security_groups,
+      'nodejs4.3',
+      f['timeout'],
+      f['memory_size'])
     lambdaMgr.create_alias(f['name'], func_version, env)
   end
 
