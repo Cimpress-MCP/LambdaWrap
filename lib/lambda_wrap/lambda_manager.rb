@@ -110,7 +110,9 @@ module LambdaWrap
           function_name: function_name, runtime: runtime, role: lambda_role,
           handler: handler, code: { s3_bucket: bucket, s3_key: key }, timeout: timeout, memory_size: memory_size, publish: true,
           description: lambda_description,
-          vpc_config: vpc_Configuration
+          vpc_config: vpc_Configuration,
+          timeout: timeout,
+          memory_size: memory_size
         ).data
         puts func_config
         func_version = func_config.version
