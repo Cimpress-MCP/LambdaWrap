@@ -1,12 +1,12 @@
 PATH
   remote: .
   specs:
-    lambda_wrap (0.21.0)
+    lambda_wrap (0.0.0)
       aws-sdk (~> 2)
       rubyzip (~> 1.2)
 
 GEM
-  remote: http://rubygems.org/
+  remote: https://rubygems.org/
   specs:
     ast (2.3.0)
     aws-sdk (2.3.20)
