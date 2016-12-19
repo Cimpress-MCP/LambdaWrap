@@ -37,7 +37,12 @@ module LambdaWrap
     # [key_schema]        The dynamoDB key definitions to be used when the table is created.
     # [read_capacity]      The read capacity to configure for the dynamoDB table.
     # [write_capacity]      The write capacity to configure for the dynamoDB table.
-    def publish_database(table_name, attribute_definitions, key_schema, read_capacity, write_capacity)
+    # [local_secondary_indexes]     The local secondary indexes to be created.
+    # [global_secondary_indexes]        The global secondary indexes to be created.
+    def publish_database(
+        table_name, attribute_definitions, key_schema, read_capacity, write_capacity, local_secondary_indexes = nil,
+        global_secondary_indexes = nil
+    )
       has_updates = false
 
       # figure out whether the table exists
@@ -65,9 +70,18 @@ module LambdaWrap
         puts "Creating table #{table_name}."
         ad = attribute_definitions || [{ attribute_name: 'Id', attribute_type: 'S' }]
         ks = key_schema || [{ attribute_name: 'Id', key_type: 'HASH' }]
-        @client.create_table(table_name: table_name, key_schema: ks, attribute_definitions: ad,
-                             provisioned_throughput:
-                               { read_capacity_units: read_capacity, write_capacity_units: write_capacity })
+
+        params = {
+            table_name: table_name, key_schema: ks, attribute_definitions: ad,
+            provisioned_throughput: {
+                read_capacity_units: read_capacity, write_capacity_units: write_capacity
+            }
+        }
+
+        params[:local_secondary_indexes] = local_secondary_indexes if local_secondary_indexes != nil
+        params[:global_secondary_indexes] = global_secondary_indexes if global_secondary_indexes != nil
+
+        @client.create_table(params)
         has_updates = true
       end
 
