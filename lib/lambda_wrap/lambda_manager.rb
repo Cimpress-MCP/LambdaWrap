@@ -25,7 +25,7 @@ module LambdaWrap
     # [node_modules]  A list of node modules that need to be included in the package.
     def package(directory, zipfile, input_filenames, node_modules)
       FileUtils.mkdir_p directory
-      FileUtils.mkdir_p File.join(directory, 'node_modules')
+      FileUtils.mkdir_p File.join(directory, 'node_modules') unless node_modules.size == 0
 
       input_filenames.each do |filename|
         FileUtils.copy_file(File.join(filename), File.join(directory, File.basename(filename)))
