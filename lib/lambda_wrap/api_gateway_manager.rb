@@ -101,6 +101,63 @@ module LambdaWrap
     end
 
     ##
+    # Given the path of a resource,gets the ID of the resource deployed at the given path at API Gateway, or nil if it doesn't exist
+    #
+    # *Arguments*
+    # [api_id]		The ID of the API from which the resource id has to be retrieved
+    # [apigateway_path] The path of the resource whose id has to be retrieved
+    def get_resource_id_for_given_path(api_id, apigateway_path)
+      resources = @client.get_resources({rest_api_id: api_id, limit:500})
+	    resource = resources.items.select { |r| r.path == apigateway_path }.first
+	    resourceId = resource.id if resource
+    end
+
+    ##
+    # Used to update the integration response for a particular resource of a rest api
+    #
+    # *Arguments*
+    # [api_name]		The name of the API gateway
+    # [apigateway_path]   The path of the resource to be updated
+    # [http_method]   The http method
+    # [status_code]		The status code for which integration response to be updated
+    # [patch_operations_array]		The patch operations that need to be updated at the integration response
+    # [stage]		The stage to which the api has to be deployed after updating the integration response
+    def update_integration_response_for_a_path_and_deploy_to_stage(api_name, apigateway_path, http_method, status_code, patch_operations_array, stage)
+      # Get the api id using the given api name
+      apiId = get_existing_rest_api(api_name)
+      if(apiId == nil)
+        raise 'Error when retrieving apiId for given api name.'
+      end
+
+      # Get the resource id at the api using the given resource path
+      resourceId = get_resource_id_for_given_path(apiId, apigateway_path)
+      if(resourceId == nil)
+        raise 'Error when retrieving resourceId for given api name.'
+      end
+
+      #update integration response with the provided arguments
+      resp = @client.update_integration_response({
+			  rest_api_id: apiId,
+			  resource_id: resourceId,
+			  http_method: http_method,
+			  status_code: status_code,
+			  patch_operations: patch_operations_array
+			})
+    	puts "Integration response for #{api_name} with api id #{apiId} at the path #{apigateway_path} with resource id #{resourceId} with http method #{http_method} and status_code #{status_code}."
+
+      # apigateway client raises TooManyRequestsException if deployment is done immediately after updation of integration response
+  		puts "Sleep for 30 seconds before attempting deployment, to avoid too many requests exception."
+  		sleep(30)
+
+      # Deploy to the provided stage
+    	resp = @client.create_deployment({
+    	  rest_api_id: apiId,
+    	  stage_name: stage
+    	  })
+      puts "Deployed the api #{api_name} with updated integration response to stage: #{stage}."
+    end
+
+    ##
     # Creates the API with a given name and returns the id
     #
     # *Arguments*
@@ -198,6 +255,6 @@ module LambdaWrap
 
 
     private :get_existing_rest_api, :setup_apigateway_create_rest_api, :setup_apigateway_create_resources,
-            :create_stages, :delete_stage
+            :create_stages, :delete_stage, :get_resource_id_for_given_path
   end
 end
