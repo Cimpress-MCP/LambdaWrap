@@ -26,6 +26,47 @@ module LambdaWrap
     end
 
     ##
+    # Updates the provisioned throughput read and write capacity of the requested table.
+    # If the table does not exist an error message is displayed. If current read/write capacity
+    # is equals to requested read/write capacity or the requested read/write capacity is 0 or less than 0
+    # no table updation is performed.
+    #
+    # *Arguments*
+    # [table_name]        The table name of the dynamoDB to be updated.
+    # [read_capacity]     The read capacity the table should be updated with.
+    # [write_capacity]    The write capacity the table should be updated with.
+    def update_table_capacity(table_name, read_capacity, write_capacity)
+      # Check if table exists.
+      begin
+        table_details = @client.describe_table(table_name: table_name).table
+      rescue Aws::DynamoDB::Errors::ResourceNotFoundException
+        raise "Update cannot be performed. Table #{table_name} does not exists."
+      end
+
+      if (read_capacity <= 0 || write_capacity <= 0)
+        puts "Table: #{table_name} not updated. Read/Write capacity should be greater than or equal to 1."
+      elsif (read_capacity == table_details.provisioned_throughput.read_capacity_units ||
+            write_capacity == table_details.provisioned_throughput.write_capacity_units)
+        puts "Table: #{table_name} not updated. Current and requested reads/writes are same.
+        Current ReadCapacityUnits provisioned for the table: #{table_details.provisioned_throughput.read_capacity_units}.
+        Requested ReadCapacityUnits: #{read_capacity}.
+        Current WriteCapacityUnits provisioned for the table: #{table_details.provisioned_throughput.write_capacity_units}.
+        Requested WriteCapacityUnits: #{write_capacity}. "
+      else
+        response = @client.update_table(
+          table_name: table_name,
+          provisioned_throughput: { read_capacity_units: read_capacity, write_capacity_units: write_capacity })
+
+        raise "Read and writes capacities was not updated for table: #{table_name}." unless (response.table_description.provisioned_throughput.read_capacity_units!= read_capacity ||
+        response.table_description.provisioned_throughput.write_capacity_units!= write_capacity)
+
+        puts "Updated new read/write capacity for table #{table_name}.
+        Read capacity updated to: #{read_capacity}.
+        Write capacity updated to: #{write_capacity}."
+      end
+    end
+
+    ##
     # Publishes the database and awaits until it is fully available. If the table already exists,
     # it only adjusts the read and write
     # capacities upwards (it doesn't downgrade them to avoid a production environment being impacted with
