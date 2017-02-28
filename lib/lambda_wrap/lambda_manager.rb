@@ -25,7 +25,7 @@ module LambdaWrap
     # [node_modules]  A list of node modules that need to be included in the package.
     def package(directory, zipfile, input_filenames, node_modules)
       FileUtils.mkdir_p directory
-      FileUtils.mkdir_p File.join(directory, 'node_modules') unless node_modules.size == 0
+      FileUtils.mkdir_p File.join(directory, 'node_modules') unless node_modules.empty?
 
       input_filenames.each do |filename|
         FileUtils.copy_file(File.join(filename), File.join(directory, File.basename(filename)))
@@ -87,33 +87,43 @@ module LambdaWrap
 
       begin
         @client.get_function(function_name: function_name)
-        vpc_configuration = { subnet_ids: vpc_subnet_ids, security_group_ids: vpc_security_group_ids } unless (vpc_subnet_ids.empty? && vpc_security_group_ids.empty?)
-        func_config = @client.update_function_configuration(function_name: function_name, role: lambda_role, runtime: runtime,
-                                                            handler: handler, timeout: timeout, memory_size: memory_size,
-                                                            description: lambda_description,
-                                                            vpc_config: vpc_configuration).data
+        vpc_configuration = {
+          subnet_ids: vpc_subnet_ids,
+          security_group_ids: vpc_security_group_ids
+        } unless vpc_subnet_ids.empty? && vpc_security_group_ids.empty?
+        func_config = @client.update_function_configuration(
+          function_name: function_name, role: lambda_role, runtime: runtime,
+          handler: handler, timeout: timeout, memory_size: memory_size,
+          description: lambda_description,
+          vpc_config: vpc_configuration
+        ).data
         puts func_config
 
-        func_config = @client.update_function_code(function_name: function_name, s3_bucket: bucket, s3_key: key,
-                                                   s3_object_version: version_id, publish: true).data
+        func_config = @client.update_function_code(
+          function_name: function_name, s3_bucket: bucket, s3_key: key,
+          s3_object_version: version_id, publish: true
+        ).data
 
         puts func_config
         func_version = func_config.version
         raise 'Error while publishing existing lambda function ' + function_name unless func_version
       rescue Aws::Lambda::Errors::ResourceNotFoundException
         # check if vpc_subnet_ids and vpc_security_group_ids are empty or not and set the vpc_config accordingly.
-        vpc_Configuration = nil
-        vpc_Configuration = { subnet_ids: vpc_subnet_ids, security_group_ids: vpc_security_group_ids } unless (vpc_subnet_ids.empty? && vpc_security_group_ids.empty?)
+        if vpc_subnet_ids.empty? && vpc_security_group_ids.empty?
+          vpc_configuration = nil
+        else
+          vpc_configuration = { subnet_ids: vpc_subnet_ids, security_group_ids: vpc_security_group_ids }
+        end
 
         # if we cannot find it, we have to create it instead of updating it
         func_config = @client.create_function(
           function_name: function_name, runtime: runtime, role: lambda_role,
-          handler: handler, code: { s3_bucket: bucket, s3_key: key }, timeout: timeout, memory_size: memory_size, publish: true,
+          handler: handler, code: { s3_bucket: bucket, s3_key: key },
+          timeout: timeout, memory_size: memory_size, publish: true,
           description: lambda_description,
-          vpc_config: vpc_Configuration,
-          timeout: timeout,
-          memory_size: memory_size
+          vpc_config: vpc_configuration
         ).data
+
         puts func_config
         func_version = func_config.version
         raise "Error while publishing new lambda function #{function_name}" unless func_version

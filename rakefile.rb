@@ -27,7 +27,7 @@ desc 'Runs Rubocop.'
 task test: :rubocop
 
 task :rubocop do
-  `rubocop`
+  `rubocop -a`
 end
 
 desc 'Uninstalls the gem'
