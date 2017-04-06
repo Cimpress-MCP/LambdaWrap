@@ -1,3 +1,3 @@
 module LambdaWrap
-  VERSION = '0.0.26'.freeze
+  VERSION = '0.26.0'.freeze
 end
