@@ -1,10 +1,11 @@
 require 'rake'
 require 'rake/clean'
+require 'lambda_wrap/version'
 
 CLEAN.include('*.gem')
 
 desc 'Builds the gem.'
-task build: [:clean, :lint, :unit_test, :integration_test]
+task build: [:clean, :lint, :unit_test, :integration_test, :create]
 
 desc 'Runs Rubocop'
 task :lint do
@@ -24,6 +25,12 @@ desc 'Runs Integration Tests.'
 task :integration_test do
   puts 'Running Integration tests...'
   # TODO: Write Integration Tests.
+end
+
+desc 'Creates the ruby gem'
+task create: [:clean] do
+  puts "Creating gem: #{LambdaWrap::VERSION}"
+  puts `gem build lambda_wrap.gemspec`
 end
 
 desc 'Uninstalls the gem'
