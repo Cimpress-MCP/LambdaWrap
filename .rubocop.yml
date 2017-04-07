@@ -21,3 +21,5 @@ RegexpLiteral:
   SupportedStyles: slashes
 ParameterLists:
   Max: 12
+SymbolArray:
+  Enabled: false

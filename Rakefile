@@ -4,7 +4,7 @@ require 'rake/clean'
 CLEAN.include('*.gem')
 
 desc 'Builds the gem.'
-task build: %i[clean lint unit_test integration_test]
+task build: [:clean, :lint, :unit_test, :integration_test]
 
 desc 'Runs Rubocop'
 task :lint do
