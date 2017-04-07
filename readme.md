@@ -1,6 +1,6 @@
 # LambdaWrap
 
-[![BuildStatus](https://travis-ci.org/Cimpress-MCP/LambdaWrap.svg?branch=master)](https://travis-ci.org/Cimpress-MCP/LambdaWrap)
+[![BuildStatus](https://travis-ci.org/Cimpress-MCP/LambdaWrap.svg?branch=master)](https://travis-ci.org/Cimpress-MCP/LambdaWrap) [![GemVersion](https://badge.fury.io/rb/lambda_wrap.svg)](https://badge.fury.io/rb/lambda_wrap)
 
 A ruby library to simplify deployment of a serverless web service based on AWS Lambda, AWS API Gateway and AWS DynamoDB.
 
