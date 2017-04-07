@@ -1,5 +1,5 @@
 source 'https://rubygems.org' do
   gem 'rake'
-  gem 'rubocop'
+  gem 'rubocop' if RUBY_VERSION >= '2.0.0'
 end
 gemspec
