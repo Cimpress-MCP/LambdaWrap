@@ -4,20 +4,26 @@ require 'rake/clean'
 CLEAN.include('*.gem')
 
 desc 'Builds the gem.'
-task build: [:clean, :lint, :unit_test, :integration_test]
+task build: %i[clean lint unit_test integration_test]
 
 desc 'Runs Rubocop'
 task :lint do
   if RUBY_VERSION >= '2.0.0'
     cmd = 'rubocop -a'
-    raise 'Error linting!' unless system(cmd)
+    system(cmd)
   end
 end
 
 desc 'Unit tests the gem.'
 task :unit_test do
-  puts 'Unit testing.'
+  puts 'Running Unit tests...'
   # TODO: Write Unit Tests.
+end
+
+desc 'Runs Integration Tests.'
+task :integration_test do
+  puts 'Running Integration tests...'
+  # TODO: Write Integration Tests.
 end
 
 desc 'Uninstalls the gem'

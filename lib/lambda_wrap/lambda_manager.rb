@@ -87,10 +87,12 @@ module LambdaWrap
 
       begin
         @client.get_function(function_name: function_name)
-        vpc_configuration = {
-          subnet_ids: vpc_subnet_ids,
-          security_group_ids: vpc_security_group_ids
-        } unless vpc_subnet_ids.empty? && vpc_security_group_ids.empty?
+        unless vpc_subnet_ids.empty? && vpc_security_group_ids.empty?
+          vpc_configuration = {
+            subnet_ids: vpc_subnet_ids,
+            security_group_ids: vpc_security_group_ids
+          }
+        end
         func_config = @client.update_function_configuration(
           function_name: function_name, role: lambda_role, runtime: runtime,
           handler: handler, timeout: timeout, memory_size: memory_size,
@@ -145,17 +147,17 @@ module LambdaWrap
     def create_alias(function_name, func_version, alias_name)
       # create or update alias
       func_alias = @client.list_aliases(function_name: function_name).aliases.select { |a| a.name == alias_name }.first
-      if !func_alias
-        a = @client.create_alias(
-          function_name: function_name, name: alias_name, function_version: func_version,
-          description: 'created by an automated script'
-        ).data
-      else
-        a = @client.update_alias(
-          function_name: function_name, name: alias_name, function_version: func_version,
-          description: 'updated by an automated script'
-        ).data
-      end
+      a = if !func_alias
+            @client.create_alias(
+              function_name: function_name, name: alias_name, function_version: func_version,
+              description: 'created by an automated script'
+            ).data
+          else
+            @client.update_alias(
+              function_name: function_name, name: alias_name, function_version: func_version,
+              description: 'updated by an automated script'
+            ).data
+          end
       puts a
 
       add_api_gateway_permissions(function_name, alias_name)
