@@ -15,6 +15,7 @@ module LambdaWrap
     end
 
     def set_table_capacity(table_name, read_capacity, write_capacity)
+      table_details = get_table_details(table_name)
       puts "Updating new read/write capacity for table #{table_name}.
        Read #{table_details.provisioned_throughput.read_capacity_units} ==> #{read_capacity}.
        Write #{table_details.provisioned_throughput.write_capacity_units} ==> #{write_capacity}."
@@ -93,7 +94,7 @@ module LambdaWrap
 
         if  read_capacity > table_details.provisioned_throughput.read_capacity_units ||
             write_capacity > table_details.provisioned_throughput.write_capacity_units
-          set_table_capacity(read_capacity, write_capacity)
+          set_table_capacity(table_name, read_capacity, write_capacity)
           has_updates = true
         else
           puts "Table #{table_name} already exists and the desired read capacity of #{read_capacity} and " \
