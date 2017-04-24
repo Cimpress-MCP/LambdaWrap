@@ -18,4 +18,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency('aws-sdk', '~> 2')
   s.add_runtime_dependency('rubyzip', '~> 1.2')
   s.license = 'Apache-2.0'
+  s.required_ruby_version = '>= 1.9.3'
 end
