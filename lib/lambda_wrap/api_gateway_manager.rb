@@ -1,4 +1,6 @@
 require 'aws-sdk'
+require 'yaml'
+require 'active_support/core_ext/hash'
 
 module LambdaWrap
   # The ApiGatewayManager simplifies downloading the aws-apigateway-importer binary,
@@ -199,5 +201,59 @@ module LambdaWrap
 
     private :get_existing_rest_api, :setup_apigateway_create_rest_api, :setup_apigateway_create_resources,
             :create_stages, :delete_stage
+  end
+
+  class ApiGateway
+    attr_reader :specification
+    attr_reader :import_mode
+
+    def initialize(options)
+      options_with_defaults = options.reverse_merge(import_mode: 'overwrite')
+      @specification = extract_specification(options_with_defaults[:swagger_file_path])
+      @import_mode = options_with_defaults[:import_mode]
+    end
+
+    def deploy(options)
+      @stage_variables = options[:environment][:variables] || {}
+      @stage_variables.store('environment', options.environment.name)
+
+      api_id = get_existing_rest_api(@specification[:info][:title])
+      service_response = nil
+      if api_id.nil?
+        service_response = @api_gateway_client.import_rest_api(fail_on_warnings: false, body: @specification)
+      else
+        service_response = @api_gateway_client.put_rest_api(fail_on_warnings: false, mode: @import_mode, rest_api_id:
+          api_id, body: @specification)
+      end
+      if gateway_response.nil? && gateway_response.id.nil?
+        raise "Failed to create API gateway with name #{@specification[:info][:title]}"
+      end
+
+      if api_id.nil?
+        "Created API Gateway Object: #{@specification[:info][:title]} having id #{service_response.id}"
+      else
+        "Updated API Gateway Object: #{@specification[:info][:title]} having id #{service_response.id}"
+      end
+    end
+
+    ##
+    # Gets the ID of an existing API Gateway api, or nil if it doesn't exist
+    #
+    # *Arguments*
+    # [api_name]  The name of the API to be checked for existance
+    def get_existing_rest_api(api_name)
+      apis = @api_gateway_client.get_rest_apis(limit: 500).data
+      api = apis.items.select { |a| a.name == api_name }.first
+
+      return api.id if api
+      # nil is returned otherwise
+    end
+
+    private
+
+    def extract_specification(file_path)
+      spec = load_file(file_path)
+      raise ArgumentError, 'LambdaWrap only supports swagger v2.0' unless spec['swagger'] == '2.0'
+    end
   end
 end
