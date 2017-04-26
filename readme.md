@@ -2,6 +2,8 @@
 
 [![BuildStatus](https://travis-ci.org/Cimpress-MCP/LambdaWrap.svg?branch=master)](https://travis-ci.org/Cimpress-MCP/LambdaWrap) [![GemVersion](https://badge.fury.io/rb/lambda_wrap.svg)](https://badge.fury.io/rb/lambda_wrap)
 
+*v1.0 is in active development!*
+
 A ruby library to simplify deployment of a serverless web service based on AWS Lambda, AWS API Gateway and AWS DynamoDB.
 
 LambdaWrap is a very simple way to manage and automate deployment of AWS Lambda functions and related functionality. It is targeted to simple use cases and focuses only on deployment automation. Its primary goal is to support developers who want to be able to spend less than 1h on infrastructure and focus on the actual value delivered by their web service.
