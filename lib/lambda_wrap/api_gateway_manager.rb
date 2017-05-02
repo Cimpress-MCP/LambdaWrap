@@ -27,6 +27,8 @@ module LambdaWrap
     #
     # @param environment_options [LambdaWrap::Environment] The environment to deploy
     def deploy(environment_options)
+      super
+      client_guard
       @stage_variables = environment_options[:environment][:variables] || {}
       @stage_variables.store('environment', environment_options[:environment][:name])
 
@@ -62,6 +64,8 @@ module LambdaWrap
     #
     # @param environment_options [LambdaWrap::Environment] The environment to teardown.
     def teardown(environment_options)
+      super
+      client_guard
       api_id = get_existing_rest_api(@specification[:info][:title])
       if api_id
         delete_stage(api_id, environment_options[:environment][:name])
@@ -73,6 +77,7 @@ module LambdaWrap
     ##
     # Deletes all stages and API Gateway object.
     def delete
+      client_guard
       api_id = get_existing_rest_api(@specification[:info][:title])
       if api_id
         @api_gateway_client.delete_rest_api(rest_api_id: api_id)
@@ -113,6 +118,10 @@ module LambdaWrap
 
       return api.id if api
       # nil is returned otherwise
+    end
+
+    def client_guard
+      raise Exception, 'Client not initialized.' unless @api_gateway_client
     end
   end
 end
