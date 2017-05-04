@@ -1,140 +1,172 @@
 require 'aws-sdk'
+require 'set'
+require 'pathname'
 
 module LambdaWrap
   ##
-  # The LambdaManager simplifies creating a package, publishing to S3, deploying a new version, & setting permissions.
-  #
-  # Note: The concept of an environment of the LambdaWrap gem matches an alias of AWS Lambda.
-  class LambdaManager
-    ##
-    # The constructor does some basic setup
-    # * Validating basic AWS configuration
-    # * Creating the underlying client to interace with the AWS SDK
-    def initialize
-      # AWS lambda client
-      @client = Aws::Lambda::Client.new
-    end
+  # Lambda Manager class.
+  class Lambda
+    def initialize(options)
+      defaults = {
+        description: 'Deployed with LambdaWrap', subnet_ids: [], security_group_ids: [], timeout: 30, memory_size: 128,
+        delete_unreferenced_versions: true
+      }
+      options_with_defaults = options.reverse_merge(defaults)
 
-    ##
-    # Packages a set of files and node modules into a deployable package.
-    #
-    # *Arguments*
-    # [directory]    A temporary directory to copy all related files before they are packages into a single zip file.
-    # [zipfile]      A path where the deployable package, a zip file, should be stored.
-    # [input_filenames]  A list of file names that contain the source code.
-    # [node_modules]  A list of node modules that need to be included in the package.
-    def package(directory, zipfile, input_filenames, node_modules)
-      FileUtils.mkdir_p directory
-      FileUtils.mkdir_p File.join(directory, 'node_modules') unless node_modules.empty?
+      unless (options_with_defaults[:function_name]) && (options_with_defaults[:function_name].is_a? String)
+        raise ArgumentException, 'function_name must be provided (String)!'
+      end
+      @function_name = options_with_defaults[:function_name]
 
-      input_filenames.each do |filename|
-        FileUtils.copy_file(File.join(filename), File.join(directory, File.basename(filename)))
+      unless (options_with_defaults[:handler]) && (options_with_defaults[:handler].is_a? String)
+        raise ArgumentException, 'handler must be provided (String)!'
+      end
+      @handler = options_with_defaults[:handler]
+
+      unless (options_with_defaults[:role_arn]) && (options_with_defaults[:role_arn].is_a? String)
+        raise ArgumentException, 'role_arn must be provided (String)!'
+      end
+      @role_arn = options_with_defaults[:role_arn]
+
+      unless (options_with_defaults[:path_to_zip_file]) && (options_with_defaults[:path_to_zip_file].is_a? String)
+        raise ArgumentException, 'path_to_zip_file must be provided (String)!'
+      end
+      @path_to_zip_file = Pathname.new(options_with_defaults[:path_to_zip_file])
+
+      unless (options_with_defaults[:runtime]) && (options_with_defaults[:runtime].is_a? String)
+        raise ArgumentException, 'runtime must be provided (String)!'
       end
 
-      node_modules.each do |dir|
-        FileUtils.cp_r(File.join('node_modules', dir), File.join(directory, 'node_modules'))
+      case options_with_defaults[:runtime]
+      when 'nodejs' then raise ArgumentException, 'AWS Lambda Runtime NodeJS v0.10.42 is deprecated as of April 2017. \
+        Please see: https://forums.aws.amazon.com/ann.jspa?annID=4142'
+      when 'nodejs4.3', 'nodejs6.10', 'java8', 'python2.7', 'python3.6', 'dotnetcore1.0', 'nodejs4.3-edge'
+        @runtime = options_with_defaults[:runtime]
+      else
+        raise ArgumentException, "Invalid Runtime specified: #{options_with_defaults[:runtime]}. Only accepts: \
+        nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-edge"
       end
 
-      ZipFileGenerator.new(directory, zipfile).write
-    end
+      @description = options_with_defaults[:description]
 
-    ##
-    # Publishes a package to S3 so it can be deployed as a lambda function.
-    #
-    # *Arguments*
-    # [local_lambda_file]  The location of the package that needs to be deployed.
-    # [bucket]        The s3 bucket where the file needs to be uploaded to.
-    # [key]          The S3 path (key) where the package should be stored.
-    def publish_lambda_to_s3(local_lambda_file, bucket, key)
-      # get s3 object
-      s3 = Aws::S3::Resource.new
-      obj = s3.bucket(bucket).object(key)
+      @timeout = options_with_defaults[:timeout]
 
-      # upload
-      version_id = nil
-      File.open(local_lambda_file, 'rb') do |file|
-        version_id = obj.put(body: file).version_id
+      @memory_size = options_with_defaults[:memory_size]
+
+      @subnet_ids = options_with_defaults[:subnet_ids]
+      @security_group_ids = options_with_defaults[:security_group_ids]
+
+      if @subnet_ids.empty? ^ @security_group_ids.empty?
+        raise ArgumentException, 'Must supply values for BOTH Subnet Ids and Security Group ID if VPC is desired.'
       end
-      raise 'Upload to S3 failed' unless version_id
 
-      puts 'Uploaded object to S3 with version ' + version_id
-      version_id
+      @delete_unreferenced_versions = options_with_defaults[:delete_unreferenced_versions]
     end
 
-    ##
-    # Deploys a package that has been uploaded to S3.
-    #
-    # *Arguments*
-    # [bucket]      The S3 bucket where the package can be retrieved from.
-    # [key]        The S3 path (key) where the package can be retrieved from.
-    # [version_id]    The version of the file on S3 to retrieve.
-    # [function_name]  The name of the lambda function.
-    # [handler]      The handler that should be executed for this lambda function.
-    # [lambda_role]    The arn of the IAM role that should be used when executing the lambda function.
-    # [lambda_description]    The description of the lambda function.
-    # [vpc_subnet_ids]  A list of subnet ids for the lambda's VPC configuration. All subnets must be on the same VPC.
-    # [vpc_security_group_ids]  A list of security group ids for the lambda's VPC configuration. All of the
-    #                           security_group_ids must be on the same VPC.
-    # [runtime] The runtime the code is written for.
-    # [timeout] The integer value of seconds until the lambda timesout. Minimum 1, Maximum 300
-    # [memory_size] The Memory/ProcessingPower allocated for the Lambda. Minimum 128. Maximum 1536. Only accepts
-    #               integers in multiples of 64.
-    def deploy_lambda(
-      bucket, key, version_id, function_name, handler, lambda_role, lambda_description = 'Deployed with LambdaWrap',
-      vpc_subnet_ids = [], vpc_security_group_ids = [], runtime = 'nodejs4.3', timeout = 5, memory_size = 128
-    )
-      # create or update function
+    def deploy(environment_options)
+      super
 
+      puts "Deploying Lambda: #{@function_name} to Environment: #{environment_options.name}"
+
+      deployment_package_blob = load_deployment_package_blob
+
+      lambda_details = retrieve_lambda_details
+
+      if lambda_details.nil?
+        function_version = create_lambda(deployment_package_blob)
+      else
+        update_lambda_config
+        function_version = update_lambda_code(deployment_package_blob)
+      end
+
+      create_alias(@function_name, function_version, environment_options[:name])
+
+      cleanup_unused_versions(@function_name) if delete_unreferenced_versions
+
+      puts "Lambda: #{@function_name} successfully deployed!"
+    end
+
+    def teardown(environment_options)
+      super
+      remove_alias(@function_name, environment_options[:name])
+      cleanup_unused_versions(@function_name) if delete_unreferenced_versions
+    end
+
+    def delete
+      lambda_details = retrieve_lambda_details
+      if lambda_details.nil?
+        puts 'No Lambda to delete.'
+      else
+        @lambda_client.delete_function(function_name: @function_name)
+        puts "Lambda #{@function_name} and all Versions & Aliases have been deleted."
+      end
+    end
+
+    private
+
+    def retrieve_lambda_details
+      lambda_details = nil
       begin
-        @client.get_function(function_name: function_name)
-        unless vpc_subnet_ids.empty? && vpc_security_group_ids.empty?
-          vpc_configuration = {
-            subnet_ids: vpc_subnet_ids,
-            security_group_ids: vpc_security_group_ids
-          }
-        end
-        func_config = @client.update_function_configuration(
-          function_name: function_name, role: lambda_role, runtime: runtime,
-          handler: handler, timeout: timeout, memory_size: memory_size,
-          description: lambda_description,
-          vpc_config: vpc_configuration
-        ).data
-        puts func_config
-
-        func_config = @client.update_function_code(
-          function_name: function_name, s3_bucket: bucket, s3_key: key,
-          s3_object_version: version_id, publish: true
-        ).data
-
-        puts func_config
-        func_version = func_config.version
-        raise 'Error while publishing existing lambda function ' + function_name unless func_version
+        lambda_details = @lambda_client.get_function(function_name: @function_name).configuration
       rescue Aws::Lambda::Errors::ResourceNotFoundException
-        # check if vpc_subnet_ids and vpc_security_group_ids are empty or not and set the vpc_config accordingly.
-        if vpc_subnet_ids.empty? && vpc_security_group_ids.empty?
-          vpc_configuration = nil
-        else
-          vpc_configuration = { subnet_ids: vpc_subnet_ids, security_group_ids: vpc_security_group_ids }
-        end
+        puts "Lambda #{@function_name} does not exist."
+      end
+      lambda_details
+    end
 
-        # if we cannot find it, we have to create it instead of updating it
-        func_config = @client.create_function(
-          function_name: function_name, runtime: runtime, role: lambda_role,
-          handler: handler, code: { s3_bucket: bucket, s3_key: key },
-          timeout: timeout, memory_size: memory_size, publish: true,
-          description: lambda_description,
-          vpc_config: vpc_configuration
-        ).data
+    def load_deployment_package_blob
+      unless File.exist?(@path_to_zip_file)
+        raise ArgumentException, "Deployment Package Zip File does not exist: #{@path_to_zip_file}!"
+      end
+      File.open(@path_to_zip_file, 'r') { |deployment_package_blob| return deployment_package_blob }
+    end
 
-        puts func_config
-        func_version = func_config.version
-        raise "Error while publishing new lambda function #{function_name}" unless func_version
+    def create_lambda(zip_blob)
+      puts "Creating New Lambda Function: #{@function_name}...."
+      puts "Runtime Engine: #{@runtime}, Timeout: #{@timeout}, Memory Size: #{@memory_size}."
+
+      unless @subnet_ids.empty? && @security_group_ids.empty?
+        vpc_configuration = {
+          subnet_ids: @subnet_ids,
+          security_group_ids: @security_group_ids
+        }
+        puts "With VPC Configuration: Subnets: #{@subnet_ids}, Security Groups: #{@security_group_ids}"
       end
 
-      add_api_gateway_permissions(function_name, nil)
+      lambda_version = @lambda_client.create_function(
+        function_name: @function_name, runtime: @runtime, role: @role_arn, handler: @handler,
+        code: { zip_file: zip_blob }, description: @description, timeout: @timeout, memory_size: @memory_size,
+        vpc_config: vpc_configuration
+      ).version
+      puts "Successfully created Lambda: #{@function_name}!"
+      lambda_version
+    end
 
-      # return the version of the new code, not the config.
-      func_version
+    def update_lambda_config
+      puts "Updating Lambda Config for #{@function_name}..."
+      puts "Runtime Engine: #{@runtime}, Timeout: #{@timeout}, Memory Size: #{@memory_size}."
+      unless @subnet_ids.empty? && @security_group_ids.empty?
+        vpc_configuration = {
+          subnet_ids: @subnet_ids,
+          security_group_ids: @security_group_ids
+        }
+        puts "With VPC Configuration: Subnets: #{@subnet_ids}, Security Groups: #{@security_group_ids}"
+      end
+
+      @lambda_client.update_function_configuration(
+        function_name: @function_name, role: @role_arn, handler: @handler, description: @description, timeout: @timeout,
+        memory_size: @memory_size, vpc_config: vpc_configuration, runtime: @runtime
+      )
+
+      puts "Successfully updated Lambda configuration for #{@function_name}"
+    end
+
+    def update_lambda_code(zip_blob)
+      puts "Updating Lambda Code for #{@function_name}...."
+
+      function_version = @lambda_client.update_function_code(function_name: @function_name, zip_file: zip_blob).version
+
+      puts "Successully updated Lambda #{@function_name} code to version: #{function_version}"
     end
 
     ##
@@ -158,51 +190,65 @@ module LambdaWrap
               description: 'updated by an automated script'
             ).data
           end
-      puts a
-
-      add_api_gateway_permissions(function_name, alias_name)
+      puts "Created Alias: #{alias_name} for Lambda: #{function_name} v#{func_version}."
+      a
     end
 
-    ##
-    # Removes an alias for a function.
-    #
-    # *Arguments*
-    # [function_name]  The lambda function name for which the alias should be removed.
-    # [alias_name]    The alias to remove.
-    def remove_alias(function_name, alias_name)
-      @client.delete_alias(function_name: function_name, name: alias_name)
+    def remove_alias(lambda_name, alias_name)
+      puts "Deleting Alias: #{alias_name} for #{lambda_name}"
+      @lambda_client.delete_alias(function_name: lambda_name, name: alias_name)
     end
 
-    ##
-    # Adds permissions for API gateway to execute this function.
-    #
-    # *Arguments*
-    # [function_name]    The function name which needs to be executed from API Gateway.
-    # [env]          The environment (matching the function's alias) which needs to be executed from API Gateway.
-    # =>             If nil, the permissions are set of the $LATEST version.
-    def add_api_gateway_permissions(function_name, env)
-      # permissions to execute lambda
-      suffix = (':' + env if env) || ''
-      func = @client.get_function(function_name: function_name + suffix).data.configuration
-      statement_id = func.function_name + (('-' + env if env) || '')
-      begin
-        existing_policies = @client.get_policy(function_name: func.function_arn).data
-        existing_policy = JSON.parse(existing_policies.policy)
-        policy_exists = existing_policy['Statement'].select { |s| s['Sid'] == statement_id }.any?
-      rescue Aws::Lambda::Errors::ResourceNotFoundException
-        # policy does not exist, and that is ok
-        policy_exists = false
+    def cleanup_unused_versions(lambda_name)
+      puts "Cleaning up unused function versions for #{lambda_name}."
+      function_versions = []
+      function_versions.concat(retrieve_all_function_versions(lambda_name))
+      return if function_versions.empty?
+      function_versions_used_by_aliases = []
+      function_versions_used_by_aliases.concat(retrieve_function_versions_used_in_aliases(lambda_name))
+      function_versions_to_be_deleted = function_versions - function_versions_used_by_aliases
+      return if function_versions_to_be_deleted.empty?
+      function_versions_to_be_deleted.each do |version|
+        puts "Deleting function version: #{version}."
+        @lambda_client.delete_function(function_name: lambda_name, qualifier: version)
       end
+      puts "Cleaned up #{function_versions_to_be_deleted.length}."
+    end
 
-      unless policy_exists
-        perm_add = @client.add_permission(
-          function_name: func.function_arn, statement_id: statement_id,
-          action: 'lambda:*', principal: 'apigateway.amazonaws.com'
+    def retrieve_all_function_versions(lambda_name)
+      function_versions = []
+      versions_by_function_response = @lambda_client.list_versions_by_function(function_name: lambda_name)
+      function_versions.concat(
+        versions_by_function_response[:versions].map { |func_version| func_version[:version] }
+      )
+
+      while !versions_by_function_response[:next_marker].nil? && !versions_by_function_response[:next_marker].empty?
+        versions_by_function_response = @lambda_client.list_versions_by_function(
+          function_name: lambda_name, marker: versions_by_function_response[:next_marker]
         )
-        puts perm_add.data
+        function_versions.concat(
+          versions_by_function_response[:versions].map { |func_version| func_version[:version] }
+        )
       end
+      function_versions
     end
 
-    private :add_api_gateway_permissions
+    def retrieve_function_versions_used_in_aliases(lambda_name)
+      function_versions_with_aliases = Set.new []
+      versions_with_aliases_response = @lambda_client.list_aliases(function_name: lambda_name)
+      return [] if versions_with_aliases_response.aliases.empty?
+      function_versions_with_aliases = function_versions_with_aliases.merge(
+        versions_with_aliases_response[:aliases].map(&:function_version)
+      )
+      while !versions_with_aliases_response[:next_marker].nil? && !versions_with_aliases_response[:next_marker].empty?
+        versions_with_aliases_response = @lambda_client.list_aliases(
+          function_name: lambda_name, next_marker: versions_with_aliases_response[:next_marker]
+        )
+        function_versions_with_aliases = function_versions_with_aliases.merge(
+          versions_with_aliases_response[:aliases].map(&:function_version)
+        )
+      end
+      function_versions_with_aliases.to_a
+    end
   end
 end

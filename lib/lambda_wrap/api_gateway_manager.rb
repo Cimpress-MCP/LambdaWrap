@@ -110,6 +110,7 @@ module LambdaWrap
     def extract_specification(file_path)
       spec = load_file(file_path)
       raise ArgumentError, 'LambdaWrap only supports swagger v2.0' unless spec['swagger'] == '2.0'
+      spec
     end
 
     def get_existing_rest_api(api_name)
