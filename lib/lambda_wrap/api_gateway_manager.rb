@@ -19,6 +19,8 @@ module LambdaWrap
     def initialize(options)
       options_with_defaults = options.reverse_merge(import_mode: 'overwrite')
       @specification = extract_specification(options_with_defaults[:swagger_file_path])
+      @api_name = @specification['info']['title']
+      @api_version = @specification['info']['version']
       @import_mode = options_with_defaults[:import_mode]
     end
 
@@ -29,31 +31,34 @@ module LambdaWrap
     def deploy(environment_options)
       super
       client_guard
-      @stage_variables = environment_options[:environment][:variables] || {}
-      @stage_variables.store('environment', environment_options[:environment][:name])
+      @stage_variables = environment_options.variables || {}
+      @stage_variables.store('environment', environment_options.name)
 
-      api_id = get_existing_rest_api(@specification[:info][:title])
+      api_id = get_existing_rest_api(@api_name)
       service_response = nil
       if api_id.nil?
         service_response = @api_gateway_client.import_rest_api(fail_on_warnings: false, body: @specification)
       else
-        service_response = @api_gateway_client.put_rest_api(fail_on_warnings: false, mode: @import_mode, rest_api_id:
-          api_id, body: @specification)
+        service_response = @api_gateway_client.put_rest_api(
+          fail_on_warnings: false, mode: @import_mode, rest_api_id:
+          api_id, body: @specification
+        )
       end
       if service_response.nil? && service_response.id.nil?
-        raise "Failed to create API gateway with name #{@specification[:info][:title]}"
+        raise "Failed to create API gateway with name #{@api_name}"
       end
 
       if api_id.nil?
-        "Created API Gateway Object: #{@specification[:info][:title]} having id #{service_response.id}"
+        "Created API Gateway Object: #{@api_name} having id #{service_response.id}"
       else
-        "Updated API Gateway Object: #{@specification[:info][:title]} having id #{service_response.id}"
+        "Updated API Gateway Object: #{@api_name} having id #{service_response.id}"
       end
 
       create_stage(service_response.id, environment_options)
 
       service_uri = "https://#{service_response.id}.execute-api.\
-        #{@region}.amazonaws.com/#{environment_options[:environment][:name]}/"
+        #{@region}.amazonaws.com/#{environment_options.name}/"
+
       puts "Service deployed at #{service_uri}"
 
       service_uri
@@ -66,11 +71,11 @@ module LambdaWrap
     def teardown(environment_options)
       super
       client_guard
-      api_id = get_existing_rest_api(@specification[:info][:title])
+      api_id = get_existing_rest_api(@api_name)
       if api_id
-        delete_stage(api_id, environment_options[:environment][:name])
+        delete_stage(api_id, environment_options.name)
       else
-        puts "API Gateway Object #{@specification[:info][:title]} not found. No environment to tear down."
+        puts "API Gateway Object #{@api_name} not found. No environment to tear down."
       end
     end
 
@@ -78,12 +83,12 @@ module LambdaWrap
     # Deletes all stages and API Gateway object.
     def delete
       client_guard
-      api_id = get_existing_rest_api(@specification[:info][:title])
+      api_id = get_existing_rest_api(@api_name)
       if api_id
         @api_gateway_client.delete_rest_api(rest_api_id: api_id)
-        puts "Deleted API: #{@specification[:info][:title]} ID:#{api_id}"
+        puts "Deleted API: #{@api_name} ID:#{api_id}"
       else
-        puts "API Gateway Object #{@specification[:info][:title]} not found. Nothing to delete."
+        puts "API Gateway Object #{@api_name} not found. Nothing to delete."
       end
     end
 
@@ -97,13 +102,13 @@ module LambdaWrap
     end
 
     def create_stage(api_id, environment_options)
-      deployment_description = "Deploying API #{@specification[:info][:title]} v#{@specification[:info][:version]}\
-        to Environment:#{environment_options[:name]}"
-      stage_description = "#{environment_options[:name]} - #{environment_options[:description]}"
+      deployment_description = "Deploying API #{@api_name} v#{@api_version}\
+        to Environment:#{environment_options.name}"
+      stage_description = "#{environment_options.name} - #{environment_options.description}"
       @api_gateway_client.create_deployment(
-        rest_api_id: api_id, stage_name: environment_options[:name],
+        rest_api_id: api_id, stage_name: environment_options.name,
         stage_description: stage_description, description: deployment_description,
-        cache_cluster_enabled: false, variables: environment_options[:variables]
+        cache_cluster_enabled: false, variables: environment_options.variables
       )
     end
 
@@ -122,7 +127,7 @@ module LambdaWrap
     end
 
     def client_guard
-      raise Exception, 'Client not initialized.' unless @api_gateway_client
+      raise Exception, 'APIGateway client not initialized.' unless @api_gateway_client
     end
   end
 end

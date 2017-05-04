@@ -38,7 +38,7 @@ module LambdaWrap
 
     def deploy(environment_options)
       super
-      full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options[:name]}" : '')
+      full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options.name}" : '')
 
       table_details = retrieve_table_details(full_table_name)
 
@@ -54,7 +54,7 @@ module LambdaWrap
 
     def teardown(environment_options)
       super
-      full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options[:name]}" : '')
+      full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options.name}" : '')
       delete_table(full_table_name)
     end
 
@@ -70,7 +70,7 @@ module LambdaWrap
     def retrieve_table_details(full_table_name)
       table_details = nil
       begin
-        table_details = @dynamo_client.describe_table(table_name: full_table_name)[:table]
+        table_details = @dynamo_client.describe_table(table_name: full_table_name).table
       rescue Aws::DynamoDB::Errors::ResourceNotFoundException
         puts "Table #{full_table_name} does not exist."
       end
@@ -94,15 +94,15 @@ module LambdaWrap
 
         details = retrieve_table_details(full_table_name)
 
-        if details[:table_status] != 'ACTIVE'
-          puts "Table: #{full_table_name} is not yet available. Status: #{details[:table_status]}. Retrying..."
+        if details.table_status != 'ACTIVE'
+          puts "Table: #{full_table_name} is not yet available. Status: #{details.table_status}. Retrying..."
         else
           updating_indexes = details.global_secondary_indexes.reject do |global_index|
-            global_index[:index_status] == 'ACTIVE'
+            global_index.index_status == 'ACTIVE'
           end
           return true if updating_indexes.empty?
           puts 'Table is available, but the global indexes are not:'
-          puts(updating_indexes.map { |global_index| "#{global_index[:index_name]}, #{global_index[:index_status]}" })
+          puts(updating_indexes.map { |global_index| "#{global_index.index_name}, #{global_index.index_status}" })
         end
         sleep(delay)
       end
@@ -145,7 +145,7 @@ module LambdaWrap
       end
 
       # Determine if there are updates to the Provisioned Throughput of the Global Secondary Indexes
-      global_secondary_index_updates = build_global_index_updates_array(table_details[:global_secondary_indexes])
+      global_secondary_index_updates = build_global_index_updates_array(table_details.global_secondary_indexes)
       unless global_secondary_index_updates.empty?
         update_global_indexes(full_table_name, global_secondary_index_updates)
 
@@ -154,7 +154,7 @@ module LambdaWrap
       end
 
       # Determine if there are new Global Secondary Indexes to be created.
-      new_global_secondary_indexes = build_new_global_indexes_array(table_details[:global_secondary_indexes])
+      new_global_secondary_indexes = build_new_global_indexes_array(table_details.global_secondary_indexes)
       return if new_global_secondary_indexes.empty?
 
       create_global_indexes(full_table_name, new_global_secondary_indexes)
@@ -200,9 +200,9 @@ module LambdaWrap
           next unless target_index[:index_name] == current_index
           # Skip unless higher Provisioned Throughput is specified
           break unless (target_index[:provisioned_throughput][:read_capacity_units] >
-                        current_index[:provisioned_throughput][:read_capacity_units]) ||
+                        current_index.provisioned_throughput.read_capacity_units) ||
                        (target_index[:provisioned_throughput][:write_capacity_units] >
-                        current_index[:provisioned_throughput][:write_capacity_units])
+                        current_index.provisioned_throughput.write_capacity_units)
           indexes_to_update << target_index
         end
       end
@@ -248,7 +248,7 @@ module LambdaWrap
         puts 'Table did not exist. Nothing to delete.'
       else
         # Wait up to 30m
-        wait_until_table_available(full_table_name, 5, 360) if table_details[:table_status] != 'ACTIVE'
+        wait_until_table_available(full_table_name, 5, 360) if table_details.table_status != 'ACTIVE'
         @dynamo_client.delete_table(table_name: full_table_name)
       end
     end
@@ -267,9 +267,9 @@ module LambdaWrap
 
     def retrieve_paginated_tables(last_retrieved = nil)
       if last_retrieved.nil?
-        @dynamo_client.list_tables[:table_names]
+        @dynamo_client.list_tables.table_names
       else
-        @dynamo_client.list_tables(exclusive_start_table_name: last_retrieved)[:table_names]
+        @dynamo_client.list_tables(exclusive_start_table_name: last_retrieved).table_names
       end
     end
   end

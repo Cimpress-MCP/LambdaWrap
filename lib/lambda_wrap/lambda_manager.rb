@@ -13,10 +13,10 @@ module LambdaWrap
       }
       options_with_defaults = options.reverse_merge(defaults)
 
-      unless (options_with_defaults[:function_name]) && (options_with_defaults[:function_name].is_a? String)
-        raise ArgumentException, 'function_name must be provided (String)!'
+      unless (options_with_defaults[:lambda_name]) && (options_with_defaults[:lambda_name].is_a? String)
+        raise ArgumentException, 'lambda_name must be provided (String)!'
       end
-      @function_name = options_with_defaults[:function_name]
+      @lambda_name = options_with_defaults[:lambda_name]
 
       unless (options_with_defaults[:handler]) && (options_with_defaults[:handler].is_a? String)
         raise ArgumentException, 'handler must be provided (String)!'
@@ -65,8 +65,9 @@ module LambdaWrap
 
     def deploy(environment_options)
       super
+      client_guard
 
-      puts "Deploying Lambda: #{@function_name} to Environment: #{environment_options.name}"
+      puts "Deploying Lambda: #{@lambda_name} to Environment: #{environment_options.name}"
 
       deployment_package_blob = load_deployment_package_blob
 
@@ -79,26 +80,28 @@ module LambdaWrap
         function_version = update_lambda_code(deployment_package_blob)
       end
 
-      create_alias(@function_name, function_version, environment_options[:name])
+      create_alias(@lambda_name, function_version, environment_options.name, environment_options.description)
 
-      cleanup_unused_versions(@function_name) if delete_unreferenced_versions
+      cleanup_unused_versions(@lambda_name) if delete_unreferenced_versions
 
-      puts "Lambda: #{@function_name} successfully deployed!"
+      puts "Lambda: #{@lambda_name} successfully deployed!"
     end
 
     def teardown(environment_options)
       super
-      remove_alias(@function_name, environment_options[:name])
-      cleanup_unused_versions(@function_name) if delete_unreferenced_versions
+      client_guard
+      remove_alias(@lambda_name, environment_options.name)
+      cleanup_unused_versions(@lambda_name) if delete_unreferenced_versions
     end
 
     def delete
+      client_guard
       lambda_details = retrieve_lambda_details
       if lambda_details.nil?
         puts 'No Lambda to delete.'
       else
-        @lambda_client.delete_function(function_name: @function_name)
-        puts "Lambda #{@function_name} and all Versions & Aliases have been deleted."
+        @lambda_client.delete_function(function_name: @lambda_name)
+        puts "Lambda #{@lambda_name} and all Versions & Aliases have been deleted."
       end
     end
 
@@ -107,9 +110,9 @@ module LambdaWrap
     def retrieve_lambda_details
       lambda_details = nil
       begin
-        lambda_details = @lambda_client.get_function(function_name: @function_name).configuration
+        lambda_details = @lambda_client.get_function(function_name: @lambda_name).configuration
       rescue Aws::Lambda::Errors::ResourceNotFoundException
-        puts "Lambda #{@function_name} does not exist."
+        puts "Lambda #{@lambda_name} does not exist."
       end
       lambda_details
     end
@@ -122,7 +125,7 @@ module LambdaWrap
     end
 
     def create_lambda(zip_blob)
-      puts "Creating New Lambda Function: #{@function_name}...."
+      puts "Creating New Lambda Function: #{@lambda_name}...."
       puts "Runtime Engine: #{@runtime}, Timeout: #{@timeout}, Memory Size: #{@memory_size}."
 
       unless @subnet_ids.empty? && @security_group_ids.empty?
@@ -134,16 +137,16 @@ module LambdaWrap
       end
 
       lambda_version = @lambda_client.create_function(
-        function_name: @function_name, runtime: @runtime, role: @role_arn, handler: @handler,
+        function_name: @lambda_name, runtime: @runtime, role: @role_arn, handler: @handler,
         code: { zip_file: zip_blob }, description: @description, timeout: @timeout, memory_size: @memory_size,
         vpc_config: vpc_configuration
       ).version
-      puts "Successfully created Lambda: #{@function_name}!"
+      puts "Successfully created Lambda: #{@lambda_name}!"
       lambda_version
     end
 
     def update_lambda_config
-      puts "Updating Lambda Config for #{@function_name}..."
+      puts "Updating Lambda Config for #{@lambda_name}..."
       puts "Runtime Engine: #{@runtime}, Timeout: #{@timeout}, Memory Size: #{@memory_size}."
       unless @subnet_ids.empty? && @security_group_ids.empty?
         vpc_configuration = {
@@ -154,43 +157,45 @@ module LambdaWrap
       end
 
       @lambda_client.update_function_configuration(
-        function_name: @function_name, role: @role_arn, handler: @handler, description: @description, timeout: @timeout,
+        function_name: @lambda_name, role: @role_arn, handler: @handler, description: @description, timeout: @timeout,
         memory_size: @memory_size, vpc_config: vpc_configuration, runtime: @runtime
       )
 
-      puts "Successfully updated Lambda configuration for #{@function_name}"
+      puts "Successfully updated Lambda configuration for #{@lambda_name}"
     end
 
     def update_lambda_code(zip_blob)
-      puts "Updating Lambda Code for #{@function_name}...."
+      puts "Updating Lambda Code for #{@lambda_name}...."
 
-      function_version = @lambda_client.update_function_code(function_name: @function_name, zip_file: zip_blob).version
+      function_version = @lambda_client.update_function_code(function_name: @lambda_name, zip_file: zip_blob).version
 
-      puts "Successully updated Lambda #{@function_name} code to version: #{function_version}"
+      puts "Successully updated Lambda #{@lambda_name} code to version: #{function_version}"
     end
 
     ##
     # Creates an alias for a given lambda function version.
     #
     # *Arguments*
-    # [function_name]    The lambda function name for which the alias should be created.
+    # [lambda_name]    The lambda function name for which the alias should be created.
     # [func_version]    The lambda function versino to which the alias should point.
     # [alias_name]      The name of the alias, matching the LambdaWrap environment concept.
-    def create_alias(function_name, func_version, alias_name)
+    def create_alias(lambda_name, func_version, alias_name, alias_description)
       # create or update alias
-      func_alias = @client.list_aliases(function_name: function_name).aliases.select { |a| a.name == alias_name }.first
+      func_alias = @lambda_client.list_aliases(
+        function_name: lambda_name
+      ).aliases.select { |a| a.name == alias_name }.first
       a = if !func_alias
-            @client.create_alias(
-              function_name: function_name, name: alias_name, function_version: func_version,
-              description: 'created by an automated script'
+            @lambda_client.create_alias(
+              function_name: lambda_name, name: alias_name, function_version: func_version,
+              description: alias_description || 'Alias managed by LambdaWrap'
             ).data
           else
-            @client.update_alias(
-              function_name: function_name, name: alias_name, function_version: func_version,
-              description: 'updated by an automated script'
+            @lambda_client.update_alias(
+              function_name: lambda_name, name: alias_name, function_version: func_version,
+              description: alias_description || 'Alias managed by LambdaWrap'
             ).data
           end
-      puts "Created Alias: #{alias_name} for Lambda: #{function_name} v#{func_version}."
+      puts "Created Alias: #{alias_name} for Lambda: #{lambda_name} v#{func_version}."
       a
     end
 
@@ -219,15 +224,15 @@ module LambdaWrap
       function_versions = []
       versions_by_function_response = @lambda_client.list_versions_by_function(function_name: lambda_name)
       function_versions.concat(
-        versions_by_function_response[:versions].map { |func_version| func_version[:version] }
+        versions_by_function_response.versions.map(&:version)
       )
 
-      while !versions_by_function_response[:next_marker].nil? && !versions_by_function_response[:next_marker].empty?
+      while !versions_by_function_response.next_marker.nil? && !versions_by_function_response.next_marker.empty?
         versions_by_function_response = @lambda_client.list_versions_by_function(
-          function_name: lambda_name, marker: versions_by_function_response[:next_marker]
+          function_name: lambda_name, marker: versions_by_function_response.next_marker
         )
         function_versions.concat(
-          versions_by_function_response[:versions].map { |func_version| func_version[:version] }
+          versions_by_function_response.versions.map(&:version)
         )
       end
       function_versions
@@ -238,17 +243,21 @@ module LambdaWrap
       versions_with_aliases_response = @lambda_client.list_aliases(function_name: lambda_name)
       return [] if versions_with_aliases_response.aliases.empty?
       function_versions_with_aliases = function_versions_with_aliases.merge(
-        versions_with_aliases_response[:aliases].map(&:function_version)
+        versions_with_aliases_response.aliases.map(&:function_version)
       )
-      while !versions_with_aliases_response[:next_marker].nil? && !versions_with_aliases_response[:next_marker].empty?
+      while !versions_with_aliases_response.next_marker.nil? && !versions_with_aliases_response.next_marker.empty?
         versions_with_aliases_response = @lambda_client.list_aliases(
-          function_name: lambda_name, next_marker: versions_with_aliases_response[:next_marker]
+          function_name: lambda_name, next_marker: versions_with_aliases_response.next_marker
         )
         function_versions_with_aliases = function_versions_with_aliases.merge(
-          versions_with_aliases_response[:aliases].map(&:function_version)
+          versions_with_aliases_response.aliases.map(&:function_version)
         )
       end
       function_versions_with_aliases.to_a
+    end
+
+    def client_guard
+      raise Exception, 'Lambda Client not initialized.' unless @lambda_client
     end
   end
 end

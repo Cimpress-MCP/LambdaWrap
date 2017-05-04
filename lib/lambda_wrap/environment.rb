@@ -1,5 +1,3 @@
-require 'active_support/core_ext/hash'
-
 module LambdaWrap
   ##
   # Environment class to pass to the deploy and teardown
