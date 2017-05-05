@@ -5,8 +5,67 @@ module LambdaWrap
   ##
   # The DynamoTable class simplifies Creation, Updating, and Destroying Dynamo DB Tables.
   class DynamoTable < AwsService
-    ##
-    # Sets up the DynamoTable for the Dynamo DB Manager.
+    # Sets up the DynamoTable for the Dynamo DB Manager. Preloading the configuration in the constructor.
+    #
+    # @param [Hash] options The configuration for the DynamoDB Table.
+    # @option options [String] :table_name The name of the DynamoDB Table. A "Base Name" can be used here where the
+    #  environment name can be appended upon deployment.
+    # @option options [Array<Hash>] :attribute_definitions ([{ attribute_name: 'Id', attribute_type: 'S' }]) An array of
+    #  attributes that describe the key schema for the table and indexes. The Hash must have symbols: :attribute_name &
+    #  :attribute_type. Please see AWS Documentation for the Data Model
+    #  http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DataModel.html
+    # @option options [Array<Hash>] :key_schema ([{ attribute_name: 'Id', key_type: 'HASH' }]) Specifies the attributes
+    #  that make up the primary key for a table or an index. The attributes in key_schema must also be defined in the
+    #  AttributeDefinitions array. Please see AWS Documentation for the Data Model:
+    #  http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DataModel.html
+    #  @option options [Integer] :read_capacity (1) The maximum number of strongly consistent reads consumed per second
+    #   before DynamoDB returns a ThrottlingException. Cannot be decreased! Must be at least 1.
+    #  @option options [Integer] :write_capacity (1) The maximum number of writes consumed per second before DynamoDB
+    #   returns a ThrottlingException. Cannot be decreased! Must be at least 1.
+    #  @option options [Array<Hash>] :local_secondary_indexes (nil) One or more local secondary indexes (the maximum is
+    #   five) to be created on the table. Each index is scoped to a given partition key value. There is a 10 GB size
+    #   limit per partition key value; otherwise, the size of a local secondary index is unconstrained.
+    #   Each element in the array must be a Hash with these symbols:
+    #   * :index_name - The name of the local secondary index. Must be unique only for this table.
+    #   * :key_schema - Specifies the key schema for the local secondary index. The key schema must begin with the same
+    #    partition key as the table.
+    #   * :projection - Specifies attributes that are copied (projected) from the table into the index. These are in
+    #    addition to the primary key attributes and index key attributes, which are automatically projected. Each
+    #    attribute specification is composed of:
+    #   ** :projection_type - One of the following:
+    #   *** KEYS_ONLY - Only the index and primary keys are projected into the index.
+    #   *** INCLUDE - Only the specified table attributes are projected into the index. The list of projected attributes
+    #    are in NonKeyAttributes.
+    #   *** ALL - All of the table attributes are projected into the index.
+    #   ** non_key_attributes - A list of one or more non-key attribute names that are projected into the secondary
+    #    index. The total count of attributes provided in NonKeyAttributes, summed across all of the secondary indexes,
+    #    must not exceed 20. If you project the same attribute into two different indexes, this counts as two distinct
+    #    attributes when determining the total.
+    #
+    #  @option options [Array<Hash>] :global_secondary_indexes One or more global secondary indexes (the maximum is
+    #   five) to be created on the table.
+    #   Each global secondary index (Hash) in the array includes the following:
+    #   * :index_name - The name of the global secondary index. Must be unique only for this table.
+    #   * :key_schema - Specifies the key schema for the global secondary index.
+    #   * :projection - Specifies attributes that are copied (projected) from the table into the index. These are in
+    #    addition to the primary key attributes and index key attributes, which are automatically projected. Each
+    #    attribute specification is composed of:
+    #   ** :projection_type - One of the following:
+    #   *** KEYS_ONLY - Only the index and primary keys are projected into the index.
+    #   *** INCLUDE - Only the specified table attributes are projected into the index. The list of projected attributes
+    #    are in NonKeyAttributes.
+    #   *** ALL - All of the table attributes are projected into the index.
+    #   ** NonKeyAttributes - A list of one or more non-key attribute names that are projected into the secondary index.
+    #    The total count of attributes provided in NonKeyAttributes, summed across all of the secondary indexes, must
+    #    not exceed 20. If you project the same attribute into two different indexes, this counts as two distinct
+    #    attributes when determining the total.
+    #   * ProvisionedThroughput - The provisioned throughput settings for the global secondary index, consisting of read
+    #    and write capacity units.
+    #
+    #  @option options [Boolean] :append_environment_on_deploy (false) Option to append the name of the environment to
+    #   the table name upon deployment and teardown. DynamoDB Tables cannot shard data in a similar manner as how Lambda
+    #   aliases and API Gateway Environments work. This option is supposed to help the user with naming tables instead
+    #   of managing the environment names on their own.
     def initialize(options)
       default_options = { append_environment_on_deploy: false, read_capacity: 1, write_capacity: 1,
                           local_secondary_indexes: nil, global_secondary_indexes: nil,
@@ -36,6 +95,12 @@ module LambdaWrap
       @append_environment_on_deploy = options_with_defaults[:append_environment_on_deploy]
     end
 
+    # Deploys the DynamoDB Table to the target environment. If the @append_environment_on_deploy option
+    # is set, the table_name will be appended with a hyphen and the environment name. This will attempt
+    # to Create or Update with the parameters specified from the constructor.
+    # This may take a LONG time for it will wait for any new indexes to be available.
+    #
+    # @param deploy [LambdaWrap::Environment] Target environment to deploy.
     def deploy(environment_options)
       super
       full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options.name}" : '')
@@ -52,12 +117,16 @@ module LambdaWrap
       puts "Dynamo Table #{full_table_name} is now available."
     end
 
+    # Deletes the DynamoDB table specified by the table_name and the Environment name (if append_environment_on_deploy)
+    # was specified. Otherwise just deletes the table. User Beware.
     def teardown(environment_options)
       super
       full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options.name}" : '')
       delete_table(full_table_name)
     end
 
+    # Deletes all DynamoDB tables that are prefixed with the @table_name specified in the constructor.
+    # This is an attempt to tear down all DynamoTables that were deployed with the environment name appended.
     def delete
       puts "Deleting all tables with prefix: #{@table_name}."
       table_names = retrieve_prefixed_tables(@table_name)
@@ -111,7 +180,6 @@ module LambdaWrap
         'Try again later or inspect the AWS console.'
     end
 
-    ##
     # Updates the Dynamo Table. You can only perform one of the following update operations at once:
     # * Modify the provisioned throughput settings of the table.
     # * Enable or disable Streams on the table.

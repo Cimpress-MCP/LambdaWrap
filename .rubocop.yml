@@ -3,13 +3,12 @@ LineLength:
   Max: 120
 MethodLength:
   Enabled: true
-  Max: 45
+  Max: 50
 ClassLength:
   Enabled: true
   Max: 250
 AbcSize:
-  Enabled: true
-  Max: 50
+  Enabled: false
 CyclomaticComplexity:
   Enabled: true
   Max: 15
@@ -19,7 +18,13 @@ RegexpLiteral:
   Enabled: false
   EnforcedStyle: slashes
   SupportedStyles: slashes
-ParameterLists:
-  Max: 12
-SymbolArray:
-  Enabled: false
+CyclomaticComplexity:
+  Enabled: true
+  Max: 20
+AllCops:
+  TargetRubyVersion: 1.9.3
+  Include:
+    - 'lib/**'
+  Exclude:
+    - 'Rakefile'
+    - 'Gemfile'

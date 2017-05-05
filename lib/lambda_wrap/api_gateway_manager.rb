@@ -9,13 +9,13 @@ module LambdaWrap
     attr_reader :specification
     attr_reader :import_mode
 
-    ##
-    # Initializes the APIGateway Manager Object.
+    # Initializes the APIGateway Manager Object. A significant majority of the configuration of your
+    # API should be configured through your Swagger File (e.g. Integrations, API Name, Version).
     #
     # @param [Hash] options The Options initialize the API Gateway Manager with.
     # @options options [String] :swagger_file_path File path the Swagger File to load and parse.
     # @options options [String] :import_mode How the API Gateway Object will handle updates.
-    #   Accepts 'overwrite' and 'merge'
+    #  Accepts 'overwrite' and 'merge'. Defaults to overwrite.
     def initialize(options)
       options_with_defaults = options.reverse_merge(import_mode: 'overwrite')
       @specification = extract_specification(options_with_defaults[:swagger_file_path])
@@ -24,7 +24,6 @@ module LambdaWrap
       @import_mode = options_with_defaults[:import_mode]
     end
 
-    ##
     # Deploys the API Gateway Object to a specified environment
     #
     # @param environment_options [LambdaWrap::Environment] The environment to deploy
@@ -64,7 +63,6 @@ module LambdaWrap
       service_uri
     end
 
-    ##
     # Tearsdown environment for API Gateway. Deletes stage.
     #
     # @param environment_options [LambdaWrap::Environment] The environment to teardown.
@@ -79,7 +77,6 @@ module LambdaWrap
       end
     end
 
-    ##
     # Deletes all stages and API Gateway object.
     def delete
       client_guard

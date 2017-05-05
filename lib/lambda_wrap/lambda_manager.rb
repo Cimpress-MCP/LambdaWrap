@@ -3,9 +3,36 @@ require 'set'
 require 'pathname'
 
 module LambdaWrap
-  ##
   # Lambda Manager class.
+  # Front loads the configuration to the constructor so that the developer can be more declarative with configuration
+  # and deployments.
   class Lambda
+    # Initializes a Lambda Manager. Frontloaded configuration.
+    #
+    # @param [Hash] options The Configuration for the lambda_name
+    # @option options [String] :lambda_name The name you want to assign to the function you are uploading. The function
+    #  names appear in the console and are returned in the ListFunctions API. Function names are used to specify
+    #  functions to other AWS Lambda API operations, such as Invoke. Note that the length constraint applies only to
+    #  the ARN. If you specify only the function name, it is limited to 64 characters in length.
+    # @option options [String] :handler The function within your code that Lambda calls to begin execution.
+    # @option options [String] :role_arn The Amazon Resource Name (ARN) of the IAM role that Lambda assumes when it
+    #  executes your function to access any other Amazon Web Services (AWS) resources.
+    # @option options [String] :path_to_zip_file The absolute path to the Deployment Package zip file
+    # @option options [String] :runtime The runtime environment for the Lambda function you are uploading.
+    # @option options [String] :description ('Deployed with LambdaWrap') A short, user-defined function description.
+    #  Lambda does not use this value. Assign a meaningful description as you see fit.
+    # @option options [Integer] :timeout (30) The function execution time at which Lambda should terminate the function.
+    # @option options [Integer] :memory_size (128) The amount of memory, in MB, your Lambda function is given. Lambda
+    #  uses this memory size to infer the amount of CPU and memory allocated to your function. The value must be a
+    #  multiple of 64MB. Minimum: 128, Maximum: 1536.
+    # @option options [Array<String>] :subnet_ids ([]) If your Lambda function accesses resources in a VPC, you provide
+    #  this parameter identifying the list of subnet IDs. These must belong to the same VPC. You must provide at least
+    #  one security group and one subnet ID to configure VPC access.
+    # @option options [Array<String>] :security_group_ids ([]) If your Lambda function accesses resources in a VPC, you
+    #  provide this parameter identifying the list of security group IDs. These must belong to the same VPC. You must
+    #  provide at least one security group and one subnet ID.
+    # @option options [Boolean] :delete_unreferenced_versions (true) Option to delete any Lambda Function Versions upon
+    #  deployment that do not have an alias pointing to them.
     def initialize(options)
       defaults = {
         description: 'Deployed with LambdaWrap', subnet_ids: [], security_group_ids: [], timeout: 30, memory_size: 128,
@@ -51,9 +78,14 @@ module LambdaWrap
 
       @timeout = options_with_defaults[:timeout]
 
+      unless (options_with_defaults[:memory_size] % 64).zero? && (options_with_defaults[:memory_size] >= 128) &&
+             (options_with_defaults[:memory_size] <= 1536)
+        raise ArgumentException, 'Invalid Memory Size.'
+      end
       @memory_size = options_with_defaults[:memory_size]
 
       @subnet_ids = options_with_defaults[:subnet_ids]
+
       @security_group_ids = options_with_defaults[:security_group_ids]
 
       if @subnet_ids.empty? ^ @security_group_ids.empty?
@@ -63,6 +95,12 @@ module LambdaWrap
       @delete_unreferenced_versions = options_with_defaults[:delete_unreferenced_versions]
     end
 
+    # Deploys the Lambda to the specified Environment. Creates a Lambda Function if one didn't exist.
+    # Updates the Lambda's configuration, Updates the Lambda's Code, publishes a new version, and creates
+    # an alias that points to the newly published version. If the @delete_unreferenced_versions option
+    # is enabled, all Lambda Function versions that don't have an alias pointing to them will be deleted.
+    #
+    # @param environment_options [LambdaWrap::Environment] The target Environment to deploy
     def deploy(environment_options)
       super
       client_guard
@@ -87,6 +125,10 @@ module LambdaWrap
       puts "Lambda: #{@lambda_name} successfully deployed!"
     end
 
+    # Tearsdown an Environment. Deletes an alias with the same name as the environment. Deletes
+    # Unreferenced Lambda Function Versions if the option was specified.
+    #
+    # @param environment_options [LambdaWrap::Environment] The target Environment to teardown.
     def teardown(environment_options)
       super
       client_guard
@@ -94,6 +136,7 @@ module LambdaWrap
       cleanup_unused_versions(@lambda_name) if delete_unreferenced_versions
     end
 
+    # Deletes the Lambda Object with associated versions, code, configuration, and aliases.
     def delete
       client_guard
       lambda_details = retrieve_lambda_details
@@ -139,7 +182,7 @@ module LambdaWrap
       lambda_version = @lambda_client.create_function(
         function_name: @lambda_name, runtime: @runtime, role: @role_arn, handler: @handler,
         code: { zip_file: zip_blob }, description: @description, timeout: @timeout, memory_size: @memory_size,
-        vpc_config: vpc_configuration
+        vpc_config: vpc_configuration, publish: true
       ).version
       puts "Successfully created Lambda: #{@lambda_name}!"
       lambda_version
@@ -151,7 +194,8 @@ module LambdaWrap
       unless @subnet_ids.empty? && @security_group_ids.empty?
         vpc_configuration = {
           subnet_ids: @subnet_ids,
-          security_group_ids: @security_group_ids
+          security_group_ids: @security_group_ids,
+          publish: false
         }
         puts "With VPC Configuration: Subnets: #{@subnet_ids}, Security Groups: #{@security_group_ids}"
       end
@@ -167,7 +211,8 @@ module LambdaWrap
     def update_lambda_code(zip_blob)
       puts "Updating Lambda Code for #{@lambda_name}...."
 
-      function_version = @lambda_client.update_function_code(function_name: @lambda_name, zip_file: zip_blob).version
+      function_version = @lambda_client.update_function_code(function_name: @lambda_name, zip_file: zip_blob,
+                                                             publish: true).version
 
       puts "Successully updated Lambda #{@lambda_name} code to version: #{function_version}"
     end

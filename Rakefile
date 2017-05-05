@@ -1,6 +1,6 @@
 require 'rake'
 require 'rake/clean'
-require 'lambda_wrap/version'
+#require 'lib/lambda_wrap/version'
 
 CLEAN.include('*.gem')
 
@@ -10,7 +10,7 @@ task build: [:clean, :lint, :unit_test, :integration_test, :create]
 desc 'Runs Rubocop'
 task :lint do
   if RUBY_VERSION >= '2.0.0'
-    cmd = 'rubocop -a'
+    cmd = 'rubocop -a -F'
     system(cmd)
   end
 end
