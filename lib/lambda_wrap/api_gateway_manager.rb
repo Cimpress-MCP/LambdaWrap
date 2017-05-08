@@ -1,5 +1,3 @@
-require 'aws-sdk'
-require 'yaml'
 require 'active_support/core_ext/hash'
 
 module LambdaWrap

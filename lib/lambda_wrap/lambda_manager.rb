@@ -41,36 +41,36 @@ module LambdaWrap
       options_with_defaults = options.reverse_merge(defaults)
 
       unless (options_with_defaults[:lambda_name]) && (options_with_defaults[:lambda_name].is_a? String)
-        raise ArgumentException, 'lambda_name must be provided (String)!'
+        raise ArgumentError, 'lambda_name must be provided (String)!'
       end
       @lambda_name = options_with_defaults[:lambda_name]
 
       unless (options_with_defaults[:handler]) && (options_with_defaults[:handler].is_a? String)
-        raise ArgumentException, 'handler must be provided (String)!'
+        raise ArgumentError, 'handler must be provided (String)!'
       end
       @handler = options_with_defaults[:handler]
 
       unless (options_with_defaults[:role_arn]) && (options_with_defaults[:role_arn].is_a? String)
-        raise ArgumentException, 'role_arn must be provided (String)!'
+        raise ArgumentError, 'role_arn must be provided (String)!'
       end
       @role_arn = options_with_defaults[:role_arn]
 
       unless (options_with_defaults[:path_to_zip_file]) && (options_with_defaults[:path_to_zip_file].is_a? String)
-        raise ArgumentException, 'path_to_zip_file must be provided (String)!'
+        raise ArgumentError, 'path_to_zip_file must be provided (String)!'
       end
       @path_to_zip_file = Pathname.new(options_with_defaults[:path_to_zip_file])
 
       unless (options_with_defaults[:runtime]) && (options_with_defaults[:runtime].is_a? String)
-        raise ArgumentException, 'runtime must be provided (String)!'
+        raise ArgumentError, 'runtime must be provided (String)!'
       end
 
       case options_with_defaults[:runtime]
-      when 'nodejs' then raise ArgumentException, 'AWS Lambda Runtime NodeJS v0.10.42 is deprecated as of April 2017. \
+      when 'nodejs' then raise ArgumentError, 'AWS Lambda Runtime NodeJS v0.10.42 is deprecated as of April 2017. \
         Please see: https://forums.aws.amazon.com/ann.jspa?annID=4142'
       when 'nodejs4.3', 'nodejs6.10', 'java8', 'python2.7', 'python3.6', 'dotnetcore1.0', 'nodejs4.3-edge'
         @runtime = options_with_defaults[:runtime]
       else
-        raise ArgumentException, "Invalid Runtime specified: #{options_with_defaults[:runtime]}. Only accepts: \
+        raise ArgumentError, "Invalid Runtime specified: #{options_with_defaults[:runtime]}. Only accepts: \
         nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-edge"
       end
 
@@ -80,7 +80,7 @@ module LambdaWrap
 
       unless (options_with_defaults[:memory_size] % 64).zero? && (options_with_defaults[:memory_size] >= 128) &&
              (options_with_defaults[:memory_size] <= 1536)
-        raise ArgumentException, 'Invalid Memory Size.'
+        raise ArgumentError, 'Invalid Memory Size.'
       end
       @memory_size = options_with_defaults[:memory_size]
 
@@ -89,7 +89,7 @@ module LambdaWrap
       @security_group_ids = options_with_defaults[:security_group_ids]
 
       if @subnet_ids.empty? ^ @security_group_ids.empty?
-        raise ArgumentException, 'Must supply values for BOTH Subnet Ids and Security Group ID if VPC is desired.'
+        raise ArgumentError, 'Must supply values for BOTH Subnet Ids and Security Group ID if VPC is desired.'
       end
 
       @delete_unreferenced_versions = options_with_defaults[:delete_unreferenced_versions]
@@ -162,7 +162,7 @@ module LambdaWrap
 
     def load_deployment_package_blob
       unless File.exist?(@path_to_zip_file)
-        raise ArgumentException, "Deployment Package Zip File does not exist: #{@path_to_zip_file}!"
+        raise ArgumentError, "Deployment Package Zip File does not exist: #{@path_to_zip_file}!"
       end
       File.open(@path_to_zip_file, 'r') { |deployment_package_blob| return deployment_package_blob }
     end

@@ -1,5 +1,6 @@
 require 'rake'
 require 'rake/clean'
+require 'rake/testtask'
 #require 'lib/lambda_wrap/version'
 
 CLEAN.include('*.gem')
@@ -15,16 +16,20 @@ task :lint do
   end
 end
 
-desc 'Unit tests the gem.'
-task :unit_test do
-  puts 'Running Unit tests...'
-  # TODO: Write Unit Tests.
+Rake::TestTask.new do |t|
+  t.test_files = FileList['test/unit/test*.rb']
+  t.warning = false
+  t.verbose = true
+  t.name = :unit_test
+  t.options = '--pride'
 end
 
-desc 'Runs Integration Tests.'
-task :integration_test do
-  puts 'Running Integration tests...'
-  # TODO: Write Integration Tests.
+Rake::TestTask.new do |t|
+  t.test_files = FileList['test/integration/test*.rb']
+  t.warning = false
+  t.verbose = true
+  t.name = :integration_test
+  t.options = '--pride'
 end
 
 desc 'Creates the ruby gem'
