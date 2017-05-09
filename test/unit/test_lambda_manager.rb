@@ -17,12 +17,12 @@ class TestLambda < Minitest::Test
     end
 
     let(:environment_valid) do
-      LambdaWrap::Environment.new('UnitTestingEnvironmentValid', { variable: 'valueValid' },
+      LambdaWrap::Environment.new('UnitTestingValid', { variable: 'valueValid' },
                                   'My UnitTesting EnvironmentValid')
     end
 
     let(:environment_invalid) do
-      LambdaWrap::Environment.new('UnitTestingEnvironmentInvalid', {}, 'My invalid Env')
+      LambdaWrap::Environment.new('UnitTestingEInvalid', {}, 'My invalid Env')
     end
 
     let(:api1) do
@@ -290,7 +290,8 @@ class TestLambda < Minitest::Test
       it ' should successfully delete the Lambda if it doesnt exist. ' do
         lambda_client = Aws::Lambda::Client.new(
           stub_responses: {
-            get_function: 'ResourceNotFoundException'
+            get_function: 'ResourceNotFoundException',
+            delete_function: {}
           }
         )
         lambda_valid.delete(lambda_client).must_equal(true)

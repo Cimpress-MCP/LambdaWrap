@@ -213,7 +213,7 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
       puts "Updating Lambda Code for #{@lambda_name}...."
 
       response = @client.update_function_code(function_name: @lambda_name, zip_file: @path_to_zip_file,
-                                                    publish: true)
+                                              publish: true)
 
       puts "Successully updated Lambda #{@lambda_name} code to version: #{response.version}"
       response.version

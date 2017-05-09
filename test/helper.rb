@@ -2,6 +2,8 @@ def silence_output
   # Store the original stdout in order to restore later
   @original_stdout = $stdout
 
+  Dir.mkdir(File.join(Dir.getwd, 'reports')) unless Dir.exist?('./reports')
+
   # Redirect stdout
   $stdout = File.new('reports/UnitTestOutput.txt', 'w')
 end
