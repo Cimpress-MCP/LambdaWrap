@@ -3,7 +3,7 @@ def silence_output
   @original_stdout = $stdout
 
   # Redirect stdout
-  $stdout = File.new('out.txt', 'w')
+  $stdout = File.new('reports/UnitTestOutput.txt', 'w')
 end
 
 # Replace stdout so anything else is output correctly
