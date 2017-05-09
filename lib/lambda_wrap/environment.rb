@@ -5,6 +5,7 @@ module LambdaWrap
     attr_accessor :name
     attr_accessor :description
     attr_accessor :variables
+    attr_accessor :client
     def initialize(name, variables = {}, description = '')
       @name = name
       @variables = variables

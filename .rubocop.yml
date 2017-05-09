@@ -1,6 +1,8 @@
 LineLength:
   Enabled: true
   Max: 120
+BlockLength:
+  Enabled: false
 MethodLength:
   Enabled: true
   Max: 50

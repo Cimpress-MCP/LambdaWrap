@@ -1,0 +1,14 @@
+Deploying Lambda: Lambda1 to Environment: UnitTestingEnvironmentInvalid
+
+Lambda LambdaValid does not exist.
+Creating New Lambda Function: LambdaValid....
+Runtime Engine: nodejs4.3, Timeout: 30, Memory Size: 256.
+With VPC Configuration: Subnets: ["subnet1", "subnet2", "subnet3"], Security Groups: ["securitygroupValid"]
+Successfully created Lambda: LambdaValid!
+Created Alias: UnitTestingEnvironmentValid for Lambda: LambdaValid v1.
+Lambda: LambdaValid successfully deployed!
+lid for Lambda: LambdaValid v4.
+Cleaning up unused function versions for LambdaValid.
+Deleting function version: 2.
+Cleaned up 1 unused versions.
+Lambda: LambdaValid successfully deployed!

@@ -2,6 +2,7 @@ require 'aws-sdk'
 require 'active_support/core_ext/hash'
 require_relative 'aws_service'
 
+# Module Documentation....
 module LambdaWrap
   # Top level class that manages the Serverless Microservice API deployment.
   class API < AwsService
@@ -11,28 +12,27 @@ module LambdaWrap
 
     def initialize(options)
       unless options[:lambda_client] && options[:dynamo_client] && options[:api_gateway_client]
-        unless options[:access_key_id] ||= ENV['AWS_ACCESS_KEY_ID'] || ENV['ACCESS_KEY']
-          raise(ArgumentError, 'Cannot find AWS Access Key ID.')
-        end
+        access_key_id = options[:access_key_id] || ENV['AWS_ACCESS_KEY_ID'] || ENV['ACCESS_KEY'] ||
+                        raise(ArgumentError, 'Cannot find AWS Access Key ID.')
 
-        unless secret_access_key ||= ENV['AWS_SECRET_ACCESS_KEY'] || ENV['SECRET_KEY']
-          raise(ArgumentError, 'Cannot find AWS Secret Key.')
-        end
+        secret_access_key = options[:secret_access_key] || ENV['AWS_SECRET_ACCESS_KEY'] || ENV['SECRET_KEY'] ||
+                            raise(ArgumentError, 'Cannot find AWS Secret Key.')
 
-        unless region ||= ENV['AWS_REGION'] || ENV['AMAZON_REGION'] || ENV['AWS_DEFAULT_REGION']
-          raise(ArgumentError, 'Cannot find AWS Region.')
-        end
+        region = options[:region] || ENV['AWS_REGION'] || ENV['AMAZON_REGION'] || ENV['AWS_DEFAULT_REGION'] ||
+                 raise(ArgumentError, 'Cannot find AWS Region.')
 
         credentials = Aws::Credentials.new(access_key_id, secret_access_key)
       end
       @lambdas = []
-      @dynamo_db_tables = []
+      @dynamo_tables = []
       @api_gateways = []
 
       # Should be accessible by other classes in the module.
       @region = region
-      @lambda_client = options[:lambda_client] || Aws::Lambda::Client.new(credentials: credentials, region: region)
-      @dynamo_client = options[:dynamo_client] || Aws::DynamoDB::Client.new(credentials: credentials, region: region)
+      @lambda_client = options[:lambda_client] ||
+                       Aws::Lambda::Client.new(credentials: credentials, region: region)
+      @dynamo_client = options[:dynamo_client] ||
+                       Aws::DynamoDB::Client.new(credentials: credentials, region: region)
       @api_gateway_client = options[:api_gateway_client] ||
                             Aws::APIGateway::Client.new(credentials: credentials, region: region)
     end
@@ -90,7 +90,7 @@ module LambdaWrap
       total_time_start = Time.now
 
       services_time_start = total_time_start
-      dynamo_tables.each { |table| table.deploy(environment_options) }
+      dynamo_tables.each { |table| table.deploy(environment_options, @dynamo_client) }
       services_time_end = Time.now
 
       unless dynamo_tables.empty?
@@ -99,7 +99,7 @@ module LambdaWrap
       end
 
       services_time_start = Time.now
-      lambdas.each { |lambda| lambda.deploy(environment_options) }
+      lambdas.each { |lambda| lambda.deploy(environment_options, @lambda_client) }
       services_time_end = Time.now
 
       unless lambdas.empty?
@@ -108,7 +108,7 @@ module LambdaWrap
       end
 
       services_time_start = Time.now
-      api_gateways.each { |apig| apig.deploy(environment_options) }
+      api_gateways.each { |apig| apig.deploy(environment_options, @api_gateway_client) }
       services_time_end = Time.now
 
       unless api_gateways.empty?
@@ -229,7 +229,7 @@ module LambdaWrap
     private
 
     def parameter_guard(parameter, type, type_name)
-      return if parameter.is_a(type)
+      return if parameter.is_a?(type)
       raise ArgumentError, "Must pass a #{type_name} to the API Manager. Got: #{parameter}"
     end
   end
