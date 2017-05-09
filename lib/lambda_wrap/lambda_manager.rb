@@ -102,9 +102,7 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     #
     # @param environment_options [LambdaWrap::Environment] The target Environment to deploy
     def deploy(environment_options, client = nil)
-      super(environment_options)
-      @client = client
-      client_guard
+      super
 
       puts "Deploying Lambda: #{@lambda_name} to Environment: #{environment_options.name}"
 
@@ -134,9 +132,7 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     #
     # @param environment_options [LambdaWrap::Environment] The target Environment to teardown.
     def teardown(environment_options, client = nil)
-      super(environment_options)
-      @client = client
-      client_guard
+      super
       remove_alias(@lambda_name, environment_options.name)
       cleanup_unused_versions(@lambda_name) if @delete_unreferenced_versions
       true
@@ -144,8 +140,7 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
 
     # Deletes the Lambda Object with associated versions, code, configuration, and aliases.
     def delete(client = nil)
-      @client = client
-      client_guard
+      super
       puts "Deleting all versions and aliases for Lambda: #{@lambda_name}"
       lambda_details = retrieve_lambda_details
       if lambda_details.nil?
@@ -301,10 +296,6 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
         )
       end
       function_versions_with_aliases.to_a
-    end
-
-    def client_guard
-      raise Exception, 'Lambda Client not initialized.' unless @client
     end
   end
 end

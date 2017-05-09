@@ -1,4 +1,5 @@
 require 'active_support/core_ext/hash'
+require 'aws-sdk'
 
 module LambdaWrap
   # The ApiGateway class simplifies creation, deployment, and management of API Gateway objects.
@@ -25,22 +26,21 @@ module LambdaWrap
     # Deploys the API Gateway Object to a specified environment
     #
     # @param environment_options [LambdaWrap::Environment] The environment to deploy
-    def deploy(environment_options)
+    def deploy(environment_options, client = nil)
       super
-      client_guard
       @stage_variables = environment_options.variables || {}
       @stage_variables.store('environment', environment_options.name)
 
       api_id = get_existing_rest_api(@api_name)
-      service_response = nil
-      if api_id.nil?
-        service_response = @api_gateway_client.import_rest_api(fail_on_warnings: false, body: @specification)
-      else
-        service_response = @api_gateway_client.put_rest_api(
-          fail_on_warnings: false, mode: @import_mode, rest_api_id:
-          api_id, body: @specification
-        )
-      end
+      service_response = if api_id.nil?
+                           @client.import_rest_api(fail_on_warnings: false, body: @specification)
+                         else
+                           @client.put_rest_api(
+                             fail_on_warnings: false, mode: @import_mode, rest_api_id:
+                             api_id, body: @specification
+                           )
+                         end
+
       if service_response.nil? && service_response.id.nil?
         raise "Failed to create API gateway with name #{@api_name}"
       end
@@ -64,9 +64,8 @@ module LambdaWrap
     # Tearsdown environment for API Gateway. Deletes stage.
     #
     # @param environment_options [LambdaWrap::Environment] The environment to teardown.
-    def teardown(environment_options)
+    def teardown(environment_options, client = nil)
       super
-      client_guard
       api_id = get_existing_rest_api(@api_name)
       if api_id
         delete_stage(api_id, environment_options.name)
@@ -76,11 +75,11 @@ module LambdaWrap
     end
 
     # Deletes all stages and API Gateway object.
-    def delete
-      client_guard
+    def delete(client = nil)
+      super
       api_id = get_existing_rest_api(@api_name)
       if api_id
-        @api_gateway_client.delete_rest_api(rest_api_id: api_id)
+        @client.delete_rest_api(rest_api_id: api_id)
         puts "Deleted API: #{@api_name} ID:#{api_id}"
       else
         puts "API Gateway Object #{@api_name} not found. Nothing to delete."
@@ -90,7 +89,7 @@ module LambdaWrap
     private
 
     def delete_stage(api_id, env)
-      @api_gateway_client.delete_stage(rest_api_id: api_id, stage_name: env)
+      @client.delete_stage(rest_api_id: api_id, stage_name: env)
       puts 'Deleted API gateway stage ' + env
     rescue Aws::APIGateway::Errors::NotFoundException
       puts 'API Gateway stage ' + env + ' does not exist. Nothing to delete.'
@@ -100,7 +99,7 @@ module LambdaWrap
       deployment_description = "Deploying API #{@api_name} v#{@api_version}\
         to Environment:#{environment_options.name}"
       stage_description = "#{environment_options.name} - #{environment_options.description}"
-      @api_gateway_client.create_deployment(
+      @client.create_deployment(
         rest_api_id: api_id, stage_name: environment_options.name,
         stage_description: stage_description, description: deployment_description,
         cache_cluster_enabled: false, variables: environment_options.variables
@@ -108,13 +107,16 @@ module LambdaWrap
     end
 
     def extract_specification(file_path)
+      unless File.exist?(file_path)
+        raise ArgumentError, "Open API Spec (Swagger) File does not exist: #{file_path}!"
+      end
       spec = load_file(file_path)
       raise ArgumentError, 'LambdaWrap only supports swagger v2.0' unless spec['swagger'] == '2.0'
       spec
     end
 
     def get_existing_rest_api(api_name)
-      apis = @api_gateway_client.get_rest_apis(limit: 500).data
+      apis = @client.get_rest_apis(limit: 500).data
       api = apis.items.select { |a| a.name == api_name }.first
 
       return api.id if api
@@ -122,7 +124,7 @@ module LambdaWrap
     end
 
     def client_guard
-      raise Exception, 'APIGateway client not initialized.' unless @api_gateway_client
+      raise Exception, 'APIGateway client not initialized.' unless @client
     end
   end
 end
