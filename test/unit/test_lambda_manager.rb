@@ -30,8 +30,8 @@ class TestLambda < Minitest::Test
     def setup
       silence_output
       @stubbed_lambda_client = Aws::Lambda::Client.new(region: 'eu-west-1', stub_responses: true)
-      @stubbed_dynamo_client = Aws::DynamoDB::Client.new(stub_responses: true)
-      @stubbed_apig_client = Aws::APIGateway::Client.new(stub_responses: true)
+      @stubbed_dynamo_client = Aws::DynamoDB::Client.new(region: 'eu-west-1', stub_responses: true)
+      @stubbed_apig_client = Aws::APIGateway::Client.new(region: 'eu-west-1', stub_responses: true)
     end
 
     def teardown
@@ -165,7 +165,7 @@ class TestLambda < Minitest::Test
             timeout: 30, memory_size: 256, subnet_ids: %w[subnet1 subnet2 subnet3],
             security_group_ids: ['securitygroup1'], delete_unreferenced_versions: true
           )
-          bad_zip_lambda.deploy(environment_invalid, @stubbed_lambda_client)
+          bad_zip_lambda.deploy(environment_invalid, @stubbed_lambda_client, 'eu-west-1')
         end
           .must_raise(ArgumentError).to_s
           .must_match(/Zip File does not exist/)
@@ -181,7 +181,7 @@ class TestLambda < Minitest::Test
               create_alias: { name: 'UnitTestingEnvironmentValid' }
             }
           )
-          lambda_valid.deploy(environment_valid, lambda_client).must_equal(true)
+          lambda_valid.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
         end
       end
 
@@ -196,7 +196,7 @@ class TestLambda < Minitest::Test
               create_alias: { name: 'UnitTestingEnvironmentValid' }
             }
           )
-          lambda_valid.deploy(environment_valid, lambda_client).must_equal(true)
+          lambda_valid.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
         end
       end
 
@@ -211,7 +211,7 @@ class TestLambda < Minitest::Test
               update_alias: { name: 'UnitTestingEnvironmentValid' }
             }
           )
-          lambda_valid.deploy(environment_valid, lambda_client).must_equal(true)
+          lambda_valid.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
         end
       end
 
@@ -225,6 +225,13 @@ class TestLambda < Minitest::Test
               list_aliases: [
                 { next_marker: 'alias_marker',
                   aliases: [{ function_version: '1', name: 'UnitTestingValid' },
+                            { function_version: '3', name: 'WrongName' },
+                            { function_version: '3', name: 'DupAlias' }] },
+                {
+                  aliases: [{ function_version: '1', name: 'AnotherDuplicate' }]
+                },
+                { next_marker: 'alias_marker',
+                  aliases: [{ function_version: '5', name: 'UnitTestingValid' },
                             { function_version: '3', name: 'WrongName' },
                             { function_version: '3', name: 'DupAlias' }] },
                 {
@@ -246,7 +253,7 @@ class TestLambda < Minitest::Test
             security_group_ids: ['securitygroupValid'], delete_unreferenced_versions: true
           )
 
-          lambda_valid_with_delete.deploy(environment_valid, lambda_client).must_equal(true)
+          lambda_valid_with_delete.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
         end
       end
     end
@@ -264,7 +271,7 @@ class TestLambda < Minitest::Test
             delete_alias: {}
           }
         )
-        lambda_valid.teardown(environment_valid, lambda_client).must_equal(true)
+        lambda_valid.teardown(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
       end
 
       it ' should delete the alias successfully and delete unused versions. ' do
@@ -284,7 +291,7 @@ class TestLambda < Minitest::Test
           timeout: 30, memory_size: 256, subnet_ids: %w[subnet1 subnet2 subnet3],
           security_group_ids: ['securitygroupValid'], delete_unreferenced_versions: true
         )
-        lambda_valid_with_delete.teardown(environment_valid, lambda_client).must_equal(true)
+        lambda_valid_with_delete.teardown(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
       end
     end
 
@@ -296,7 +303,7 @@ class TestLambda < Minitest::Test
             delete_function: {}
           }
         )
-        lambda_valid.delete(lambda_client).must_equal(true)
+        lambda_valid.delete(lambda_client, 'eu-west-1').must_equal(true)
       end
 
       it ' should successfully delete the Lambda if it doesnt exist. ' do
@@ -306,7 +313,7 @@ class TestLambda < Minitest::Test
             delete_function: {}
           }
         )
-        lambda_valid.delete(lambda_client).must_equal(true)
+        lambda_valid.delete(lambda_client, 'eu-west-1').must_equal(true)
       end
     end
   end

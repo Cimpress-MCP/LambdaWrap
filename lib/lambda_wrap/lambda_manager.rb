@@ -101,7 +101,7 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     # is enabled, all Lambda Function versions that don't have an alias pointing to them will be deleted.
     #
     # @param environment_options [LambdaWrap::Environment] The target Environment to deploy
-    def deploy(environment_options, client = nil)
+    def deploy(environment_options, client = nil, region = '')
       super
 
       puts "Deploying Lambda: #{@lambda_name} to Environment: #{environment_options.name}"
@@ -131,7 +131,7 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     # Unreferenced Lambda Function Versions if the option was specified.
     #
     # @param environment_options [LambdaWrap::Environment] The target Environment to teardown.
-    def teardown(environment_options, client = nil)
+    def teardown(environment_options, client = nil, region = '')
       super
       remove_alias(@lambda_name, environment_options.name)
       cleanup_unused_versions(@lambda_name) if @delete_unreferenced_versions
@@ -139,7 +139,7 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     end
 
     # Deletes the Lambda Object with associated versions, code, configuration, and aliases.
-    def delete(client = nil)
+    def delete(client = nil, region = '')
       super
       puts "Deleting all versions and aliases for Lambda: #{@lambda_name}"
       lambda_details = retrieve_lambda_details
@@ -222,23 +222,18 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     # [func_version]    The lambda function versino to which the alias should point.
     # [alias_name]      The name of the alias, matching the LambdaWrap environment concept.
     def create_alias(lambda_name, func_version, alias_name, alias_description)
-      # create or update alias
-      func_alias = @client.list_aliases(
-        function_name: lambda_name
-      ).aliases.select { |a| a.name == alias_name }.first
-      a = if !func_alias
-            @client.create_alias(
-              function_name: lambda_name, name: alias_name, function_version: func_version,
-              description: alias_description || 'Alias managed by LambdaWrap'
-            )
-          else
-            @client.update_alias(
-              function_name: lambda_name, name: alias_name, function_version: func_version,
-              description: alias_description || 'Alias managed by LambdaWrap'
-            )
-          end
+      if alias_exist?(lambda_name, alias_name)
+        @client.create_alias(
+          function_name: lambda_name, name: alias_name, function_version: func_version,
+          description: alias_description || 'Alias managed by LambdaWrap'
+        )
+      else
+        @client.update_alias(
+          function_name: lambda_name, name: alias_name, function_version: func_version,
+          description: alias_description || 'Alias managed by LambdaWrap'
+        )
+      end
       puts "Created Alias: #{alias_name} for Lambda: #{lambda_name} v#{func_version}."
-      a
     end
 
     def remove_alias(lambda_name, alias_name)
@@ -248,58 +243,58 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
 
     def cleanup_unused_versions(lambda_name)
       puts "Cleaning up unused function versions for #{lambda_name}."
-      function_versions = []
-      function_versions.concat(retrieve_all_function_versions(lambda_name))
-      return if function_versions.empty?
-      function_versions_used_by_aliases = []
-      function_versions_used_by_aliases.concat(retrieve_function_versions_used_in_aliases(lambda_name))
-      function_versions_to_be_deleted = function_versions - function_versions_used_by_aliases
+      function_versions_to_be_deleted = retrieve_all_function_versions(lambda_name) -
+                                        retrieve_function_versions_used_in_aliases(lambda_name)
+
       return if function_versions_to_be_deleted.empty?
+
       function_versions_to_be_deleted.each do |version|
         puts "Deleting function version: #{version}."
         @client.delete_function(function_name: lambda_name, qualifier: version)
       end
+
       puts "Cleaned up #{function_versions_to_be_deleted.length} unused versions."
     end
 
     def retrieve_all_function_versions(lambda_name)
       function_versions = []
-      versions_by_function_response = @client.list_versions_by_function(function_name: lambda_name)
-      function_versions.concat(
-        versions_by_function_response.versions.map(&:version)
-      )
-
-      while !versions_by_function_response.next_marker.nil? && !versions_by_function_response.next_marker.empty?
-        versions_by_function_response = @client.list_versions_by_function(
-          function_name: lambda_name, marker: versions_by_function_response.next_marker
-        )
-        function_versions.concat(
-          versions_by_function_response.versions.map(&:version)
-        )
+      response = nil
+      loop do
+        response =
+          if !response || response.next_marker.nil? || response.next_marker.empty?
+            @client.list_versions_by_function(function_name: lambda_name)
+          else
+            @client.list_versions_by_function(function_name: lambda_name, marker: response.next_marker)
+          end
+        function_versions.concat(response.versions.map(&:version))
+        return function_versions if response.next_marker.nil? || response.next_marker.empty?
       end
-      function_versions
+    end
+
+    def retrieve_all_aliases(lambda_name)
+      aliases = []
+      response = nil
+      loop do
+        response =
+          if !response || response.next_marker.nil? || response.next_marker.empty?
+            @client.list_aliases(function_name: lambda_name)
+          else
+            @client.list_aliases(function_name: lambda_name, marker: response.next_marker)
+          end
+        aliases.concat(response.aliases)
+        return aliases if response.next_marker.nil? || response.next_marker.empty?
+      end
     end
 
     def retrieve_function_versions_used_in_aliases(lambda_name)
-      puts "Retrieving function versions used in aliases for #{lambda_name}"
       function_versions_with_aliases = Set.new []
-      versions_with_aliases_response = @client.list_aliases(function_name: lambda_name)
-      return [] if versions_with_aliases_response.aliases.empty?
-      function_versions_with_aliases = function_versions_with_aliases.merge(
-        versions_with_aliases_response.aliases.map(&:function_version)
-      )
-      puts "Response: #{versions_with_aliases_response}"
-      while !versions_with_aliases_response.next_marker.nil? && !versions_with_aliases_response.next_marker.empty?
-        versions_with_aliases_response = @client.list_aliases(
-          function_name: lambda_name, marker: versions_with_aliases_response.next_marker
-        )
-        puts "Response: #{versions_with_aliases_response}"
-        function_versions_with_aliases = function_versions_with_aliases.merge(
-          versions_with_aliases_response.aliases.map(&:function_version)
-        )
-      end
-      puts "Function versions with aliases #{function_versions_with_aliases.to_a}"
+      all_aliases = retrieve_all_aliases(lambda_name)
+      function_versions_with_aliases.merge(all_aliases.map(&:function_version))
       function_versions_with_aliases.to_a
+    end
+
+    def alias_exist?(lambda_name, alias_name)
+      retrieve_all_aliases(lambda_name).detect { |a| a.name == alias_name }
     end
   end
 end
