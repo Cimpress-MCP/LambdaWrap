@@ -4,6 +4,7 @@ require 'lambda_wrap/version'
 
 require 'aws-sdk'
 require 'yaml'
+require 'active_support/core_ext/hash'
 
 require 'lambda_wrap/aws_service'
 require 'lambda_wrap/lambda_manager'

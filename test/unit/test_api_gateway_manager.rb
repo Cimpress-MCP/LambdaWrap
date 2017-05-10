@@ -1,9 +1,4 @@
 require './test/helper.rb'
-require 'minitest/autorun'
-require 'minitest/reporters'
-require 'aws-sdk'
-require 'lambda_wrap'
-Minitest::Reporters.use!
 
 class TestApiGateway < Minitest::Test
   def setup
@@ -17,5 +12,11 @@ class TestApiGateway < Minitest::Test
     enable_output
   end
 
-
+  describe ' when constructiong the API Gateway ' do
+    it ' should create successfully with all valid values given.' do
+      apig_under_test = LambdaWrap::ApiGateway.new(swagger_file_path: './test/data/swagger_valid_1.yaml',
+                                                   import_mode: 'merge')
+      apig_under_test.must_be_instance_of(LambdaWrap::ApiGateway)
+    end
+  end
 end

@@ -1,6 +1,3 @@
-require 'active_support/core_ext/hash'
-require 'aws-sdk'
-
 module LambdaWrap
   # The ApiGateway class simplifies creation, deployment, and management of API Gateway objects.
   # The specification for the API MUST be detailed in a provided Open API Formatted file (fka Swagger).
@@ -13,8 +10,8 @@ module LambdaWrap
     #
     # @param [Hash] options The Options initialize the API Gateway Manager with.
     # @options options [String] :swagger_file_path File path the Swagger File to load and parse.
-    # @options options [String] :import_mode How the API Gateway Object will handle updates.
-    #  Accepts 'overwrite' and 'merge'. Defaults to overwrite.
+    # @options options [String] :import_mode ('overwrite') How the API Gateway Object will handle updates.
+    #  Accepts 'overwrite' and 'merge'.
     def initialize(options)
       options_with_defaults = options.reverse_merge(import_mode: 'overwrite')
       @specification = extract_specification(options_with_defaults[:swagger_file_path])
@@ -110,7 +107,7 @@ module LambdaWrap
       unless File.exist?(file_path)
         raise ArgumentError, "Open API Spec (Swagger) File does not exist: #{file_path}!"
       end
-      spec = load_file(file_path)
+      spec = Psych.load_file(file_path)
       raise ArgumentError, 'LambdaWrap only supports swagger v2.0' unless spec['swagger'] == '2.0'
       spec
     end

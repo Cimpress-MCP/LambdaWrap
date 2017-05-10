@@ -1,8 +1,4 @@
-require 'minitest/autorun'
-require 'minitest/reporters'
 require './test/helper.rb'
-require 'lambda_wrap'
-Minitest::Reporters.use!
 
 class TestEnvironment < Minitest::Test
   describe LambdaWrap::Environment do

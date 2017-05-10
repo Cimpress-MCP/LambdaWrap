@@ -26,7 +26,7 @@ module LambdaWrap
     private
 
     def client_guard
-      raise Exception, 'Aws client not initialized.' unless @client
+      raise Exception, 'AWS client not initialized.' unless @client
     end
   end
 end

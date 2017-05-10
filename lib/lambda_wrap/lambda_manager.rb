@@ -281,20 +281,24 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     end
 
     def retrieve_function_versions_used_in_aliases(lambda_name)
+      puts "Retrieving function versions used in aliases for #{lambda_name}"
       function_versions_with_aliases = Set.new []
       versions_with_aliases_response = @client.list_aliases(function_name: lambda_name)
       return [] if versions_with_aliases_response.aliases.empty?
       function_versions_with_aliases = function_versions_with_aliases.merge(
         versions_with_aliases_response.aliases.map(&:function_version)
       )
+      puts "Response: #{versions_with_aliases_response}"
       while !versions_with_aliases_response.next_marker.nil? && !versions_with_aliases_response.next_marker.empty?
         versions_with_aliases_response = @client.list_aliases(
-          function_name: lambda_name, next_marker: versions_with_aliases_response.next_marker
+          function_name: lambda_name, marker: versions_with_aliases_response.next_marker
         )
+        puts "Response: #{versions_with_aliases_response}"
         function_versions_with_aliases = function_versions_with_aliases.merge(
           versions_with_aliases_response.aliases.map(&:function_version)
         )
       end
+      puts "Function versions with aliases #{function_versions_with_aliases.to_a}"
       function_versions_with_aliases.to_a
     end
   end

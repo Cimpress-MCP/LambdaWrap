@@ -1,3 +1,15 @@
+require 'simplecov'
+SimpleCov.start do
+  coverage_dir 'reports/coverage'
+  add_filter 'test'
+end
+
+require 'minitest/autorun'
+require 'minitest/reporters'
+require 'aws-sdk'
+require 'lambda_wrap'
+Minitest::Reporters.use!
+
 def silence_output
   # Store the original stdout in order to restore later
   @original_stdout = $stdout

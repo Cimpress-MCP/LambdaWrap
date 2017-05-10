@@ -1,9 +1,4 @@
 require './test/helper.rb'
-require 'minitest/autorun'
-require 'minitest/reporters'
-require 'aws-sdk'
-require 'lambda_wrap'
-Minitest::Reporters.use!
 
 class TestLambda < Minitest::Test
   describe LambdaWrap::Lambda do
@@ -22,7 +17,7 @@ class TestLambda < Minitest::Test
     end
 
     let(:environment_invalid) do
-      LambdaWrap::Environment.new('UnitTestingEInvalid', {}, 'My invalid Env')
+      LambdaWrap::Environment.new('UnitTestingInvalid', {}, 'My invalid Env')
     end
 
     let(:api1) do
@@ -51,9 +46,9 @@ class TestLambda < Minitest::Test
       end
 
       it ' should throw an error if the Handler is not given. ' do
-        proc { LambdaWrap::Lambda.new(foo: 'bar') }
+        proc { LambdaWrap::Lambda.new(lambda_name: 'lambda', foo: 'bar') }
           .must_raise(ArgumentError).to_s
-          .must_match(/lambda_name/)
+          .must_match(/handler/)
       end
 
       it ' should throw an error if the RoleArn is not given. ' do
@@ -83,6 +78,14 @@ class TestLambda < Minitest::Test
           LambdaWrap::Lambda.new(
             lambda_name: 'Lambda2', handler: 'handler2', role_arn: 'role', path_to_zip_file: 'path/file.zip',
             runtime: 'c++'
+          )
+        end
+          .must_raise(ArgumentError).to_s
+          .must_match(/Runtime/)
+        proc do
+          LambdaWrap::Lambda.new(
+            lambda_name: 'Lambda2', handler: 'handler2', role_arn: 'role', path_to_zip_file: 'path/file.zip',
+            runtime: 'nodejs'
           )
         end
           .must_raise(ArgumentError).to_s
@@ -151,7 +154,7 @@ class TestLambda < Minitest::Test
           lambda_valid.deploy(environment_valid)
         }
           .must_raise(Exception).to_s
-          .must_match(/Lambda Client/)
+          .must_match(/AWS client/)
       end
 
       it ' should throw an error if the zip file does not exist. ' do
@@ -204,7 +207,7 @@ class TestLambda < Minitest::Test
               get_function: { configuration: { version: '3' } },
               update_function_configuration: { version: '3' },
               update_function_code: { version: '4' },
-              list_aliases: { aliases: [{ name: 'UnitTestingEnvironmentValid' }, { name: 'WrongName' }] },
+              list_aliases: { aliases: [{ name: 'UnitTestingValid' }, { name: 'WrongName' }] },
               update_alias: { name: 'UnitTestingEnvironmentValid' }
             }
           )
@@ -219,16 +222,25 @@ class TestLambda < Minitest::Test
               get_function: { configuration: { version: '3' } },
               update_function_configuration: { version: '3' },
               update_function_code: { version: '4' },
-              list_aliases: { aliases: [{ function_version: '1', name: 'UnitTestingEnvironmentValid' },
-                                        { function_version: '3', name: 'WrongName' },
-                                        { function_version: '3', name: 'DupAlias' }] },
-              update_alias: { name: 'UnitTestingEnvironmentValid' },
-              list_versions_by_function: { versions: [{ version: '1' }, { version: '2' }, { version: '3' }] },
+              list_aliases: [
+                { next_marker: 'alias_marker',
+                  aliases: [{ function_version: '1', name: 'UnitTestingValid' },
+                            { function_version: '3', name: 'WrongName' },
+                            { function_version: '3', name: 'DupAlias' }] },
+                {
+                  aliases: [{ function_version: '1', name: 'AnotherDuplicate' }]
+                }
+              ],
+              update_alias: { name: 'UnitTestingValid' },
+              list_versions_by_function: [
+                { versions: [{ version: '1' }, { version: '2' }, { version: '3' }], next_marker: 'marker' },
+                { versions: [{ version: '4' }] }
+              ],
               delete_function: {}
             }
           )
           lambda_valid_with_delete = LambdaWrap::Lambda.new(
-            lambda_name: 'LambdaValid', handler: 'handlerValid', role_arn: 'role_arnValid',
+            lambda_name: 'CleanupUpdateLambda', handler: 'handlerValid', role_arn: 'role_arnValid',
             path_to_zip_file: 'valid/path/to/file.zip', runtime: 'nodejs4.3', description: 'descriptionValid',
             timeout: 30, memory_size: 256, subnet_ids: %w[subnet1 subnet2 subnet3],
             security_group_ids: ['securitygroupValid'], delete_unreferenced_versions: true
