@@ -1,4 +1,3 @@
-require 'aws-sdk'
 require 'set'
 require 'pathname'
 

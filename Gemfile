@@ -4,7 +4,6 @@ source 'https://rubygems.org' do
   gem 'yard'
   gem 'minitest'
   gem 'minitest-reporters'
-  gem 'swagger-core'
   gem 'aws-sdk'
   gem 'activesupport', '~> 4.2', '>= 4.2.8', :require => true
   gem 'simplecov', :require => false, :group => :test

@@ -101,7 +101,7 @@ module LambdaWrap
     # This may take a LONG time for it will wait for any new indexes to be available.
     #
     # @param deploy [LambdaWrap::Environment] Target environment to deploy.
-    def deploy(environment_options)
+    def deploy(environment_options, client = nil, region = '')
       super
       full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options.name}" : '')
 
@@ -123,6 +123,7 @@ module LambdaWrap
       super
       full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options.name}" : '')
       delete_table(full_table_name)
+      true
     end
 
     # Deletes all DynamoDB tables that are prefixed with the @table_name specified in the constructor.
@@ -139,7 +140,7 @@ module LambdaWrap
     def retrieve_table_details(full_table_name)
       table_details = nil
       begin
-        table_details = @dynamo_client.describe_table(table_name: full_table_name).table
+        table_details = @client.describe_table(table_name: full_table_name).table
       rescue Aws::DynamoDB::Errors::ResourceNotFoundException
         puts "Table #{full_table_name} does not exist."
       end
@@ -235,7 +236,7 @@ module LambdaWrap
       puts "Updating Provisioned Throughtput for #{full_table_name}"
       puts "Setting Read Capacity Units From: #{old_read} To: #{@read_capacity}"
       puts "Setting Write Capacty Units From: #{old_write} To: #{@write_capacity}"
-      @dynamo_client.update_table(
+      @client.update_table(
         table_name: full_table_name,
         provisioned_throughput: { read_capacity_units: @read_capacity, write_capacity_units: @write_capacity }
       )
@@ -250,7 +251,7 @@ module LambdaWrap
 
     def delete_global_index(full_table_name, index_to_delete)
       puts "Deleting Global Secondary Index: #{index_to_delete} from Table: #{full_table_name}"
-      @dynamo_client.update_table(
+      @client.update_table(
         table_name: full_table_name,
         global_secondary_index_updates: [{ delete: { index_name: index_to_delete } }]
       )
@@ -285,7 +286,7 @@ module LambdaWrap
           Write: #{index[:provisioned_throughput][:write_capacity_units]}"
         end
       )
-      @dynamo_client.update_table(
+      @client.update_table(
         table_name: full_table_name,
         global_secondary_index_updates: global_secondary_index_updates.map { |index| { update: index } }
       )
@@ -293,7 +294,7 @@ module LambdaWrap
 
     def create_table(full_table_name)
       puts "Creating table #{full_table_name}..."
-      @dynamo_client.create_table(
+      @client.create_table(
         table_name: full_table_name, attribute_definitions: @attribute_definitions,
         key_schema: @key_schema,
         provisioned_throughput: { read_capacity_units: @read_capacity,
@@ -317,7 +318,7 @@ module LambdaWrap
       else
         # Wait up to 30m
         wait_until_table_available(full_table_name, 5, 360) if table_details.table_status != 'ACTIVE'
-        @dynamo_client.delete_table(table_name: full_table_name)
+        @client.delete_table(table_name: full_table_name)
       end
     end
 
@@ -335,9 +336,9 @@ module LambdaWrap
 
     def retrieve_paginated_tables(last_retrieved = nil)
       if last_retrieved.nil?
-        @dynamo_client.list_tables.table_names
+        @client.list_tables.table_names
       else
-        @dynamo_client.list_tables(exclusive_start_table_name: last_retrieved).table_names
+        @client.list_tables(exclusive_start_table_name: last_retrieved).table_names
       end
     end
   end

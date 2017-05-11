@@ -1,16 +1,13 @@
-require 'aws-sdk'
-require 'active_support/core_ext/hash'
-require_relative 'aws_service'
-
 # Module Documentation....
 module LambdaWrap
   # Top level class that manages the Serverless Microservice API deployment.
-  class API < AwsService
+  class API
     attr_reader :lambdas
     attr_reader :dynamo_tables
     attr_reader :api_gateways
+    attr_reader :region
 
-    def initialize(options)
+    def initialize(options = {})
       unless options[:lambda_client] && options[:dynamo_client] && options[:api_gateway_client]
         access_key_id = options[:access_key_id] || ENV['AWS_ACCESS_KEY_ID'] || ENV['ACCESS_KEY'] ||
                         raise(ArgumentError, 'Cannot find AWS Access Key ID.')
@@ -18,16 +15,16 @@ module LambdaWrap
         secret_access_key = options[:secret_access_key] || ENV['AWS_SECRET_ACCESS_KEY'] || ENV['SECRET_KEY'] ||
                             raise(ArgumentError, 'Cannot find AWS Secret Key.')
 
-        region = options[:region] || ENV['AWS_REGION'] || ENV['AMAZON_REGION'] || ENV['AWS_DEFAULT_REGION'] ||
-                 raise(ArgumentError, 'Cannot find AWS Region.')
-
         credentials = Aws::Credentials.new(access_key_id, secret_access_key)
       end
+
+      region = options[:region] || ENV['AWS_REGION'] || ENV['AMAZON_REGION'] || ENV['AWS_DEFAULT_REGION'] ||
+               raise(ArgumentError, 'Cannot find AWS Region.')
+
       @lambdas = []
       @dynamo_tables = []
       @api_gateways = []
 
-      # Should be accessible by other classes in the module.
       @region = region
       @lambda_client = options[:lambda_client] ||
                        Aws::Lambda::Client.new(credentials: credentials, region: region)
@@ -74,7 +71,7 @@ module LambdaWrap
     #
     # @param [LambdaWrap::Environment] environment_options the Environment to deploy
     def deploy(environment_options)
-      super
+      parameter_guard(environment_options, LambdaWrap::Environment, 'LambdaWrap::Environment')
       if dynamo_tables.empty? && lambdas.empty? && api_gateways.empty?
         puts 'Nothing to deploy.'
         return
@@ -90,7 +87,7 @@ module LambdaWrap
       total_time_start = Time.now
 
       services_time_start = total_time_start
-      dynamo_tables.each { |table| table.deploy(environment_options, @dynamo_client) }
+      dynamo_tables.each { |table| table.deploy(environment_options, @dynamo_client, @region) }
       services_time_end = Time.now
 
       unless dynamo_tables.empty?
@@ -99,7 +96,7 @@ module LambdaWrap
       end
 
       services_time_start = Time.now
-      lambdas.each { |lambda| lambda.deploy(environment_options, @lambda_client) }
+      lambdas.each { |lambda| lambda.deploy(environment_options, @lambda_client, @region) }
       services_time_end = Time.now
 
       unless lambdas.empty?
@@ -108,7 +105,7 @@ module LambdaWrap
       end
 
       services_time_start = Time.now
-      api_gateways.each { |apig| apig.deploy(environment_options, @api_gateway_client) }
+      api_gateways.each { |apig| apig.deploy(environment_options, @api_gateway_client, @region) }
       services_time_end = Time.now
 
       unless api_gateways.empty?
@@ -121,13 +118,15 @@ module LambdaWrap
       puts "Total API Deployment took: \
       #{Time.at(total_time_end - total_time_start).utc.strftime('%H:%M:%S')}"
       puts "Successfully deployed API to #{environment_options.name}"
+
+      true
     end
 
     # Tearsdown Environment for all services.
     #
     # @param [LambdaWrap::Environment] environment_options the Environment to teardown
     def teardown(environment_options)
-      super
+      parameter_guard(environment_options, LambdaWrap::Environment, 'LambdaWrap::Environment')
       if dynamo_tables.empty? && lambdas.empty? && api_gateways.empty?
         puts 'Nothing to teardown.'
         return
@@ -143,7 +142,7 @@ module LambdaWrap
       total_time_start = Time.now
 
       services_time_start = total_time_start
-      dynamo_tables.each { |table| table.teardown(environment_options) }
+      dynamo_tables.each { |table| table.teardown(environment_options, @dynamo_client, @region) }
       services_time_end = Time.now
 
       unless dynamo_tables.empty?
@@ -152,7 +151,7 @@ module LambdaWrap
       end
 
       services_time_start = Time.now
-      lambdas.each { |lambda| lambda.teardown(environment_options) }
+      lambdas.each { |lambda| lambda.teardown(environment_options, @lambda_client, @region) }
       services_time_end = Time.now
 
       unless lambdas.empty?
@@ -161,7 +160,7 @@ module LambdaWrap
       end
 
       services_time_start = Time.now
-      api_gateways.each { |apig| apig.teardown(environment_options) }
+      api_gateways.each { |apig| apig.teardown(environment_options, @api_gateway_client, @region) }
       services_time_end = Time.now
 
       unless api_gateways.empty?
@@ -174,6 +173,8 @@ module LambdaWrap
       puts "Total API Tear-down took: \
       #{Time.at(total_time_end - total_time_start).utc.strftime('%H:%M:%S')}"
       puts "Successful Teardown API to #{environment_options.name}"
+
+      true
     end
 
     # Deletes all services from the cloud.
@@ -187,13 +188,12 @@ module LambdaWrap
       deployment_start_message += "#{dynamo_tables.length} Dynamo Tables, " unless dynamo_tables.empty?
       deployment_start_message += "#{lambdas.length} Lambdas, " unless lambdas.empty?
       deployment_start_message += "#{api_gateways.length} API Gateways " unless api_gateways.empty?
-      deployment_start_message += " Environment: #{environment_options.name}"
       puts deployment_start_message
 
       total_time_start = Time.now
 
       services_time_start = total_time_start
-      dynamo_tables.each { |table| table.delete(environment_options) }
+      dynamo_tables.each { |table| table.delete(@dynamo_client, @region) }
       services_time_end = Time.now
 
       unless dynamo_tables.empty?
@@ -202,7 +202,7 @@ module LambdaWrap
       end
 
       services_time_start = Time.now
-      lambdas.each { |lambda| lambda.delete(environment_options) }
+      lambdas.each { |lambda| lambda.delete(@lambda_client, @region) }
       services_time_end = Time.now
 
       unless lambdas.empty?
@@ -211,7 +211,7 @@ module LambdaWrap
       end
 
       services_time_start = Time.now
-      api_gateways.each { |apig| apig.delete(environment_options) }
+      api_gateways.each { |apig| apig.delete(@api_gateway_client, @region) }
       services_time_end = Time.now
 
       unless api_gateways.empty?
@@ -224,6 +224,8 @@ module LambdaWrap
       puts "Total API Deletion took: \
       #{Time.at(total_time_end - total_time_start).utc.strftime('%H:%M:%S')}"
       puts 'Successful Deletion of API'
+
+      true
     end
 
     private
