@@ -4,9 +4,6 @@ class TestApiGateway < Minitest::Test
   describe LambdaWrap::ApiGateway do
     def setup
       silence_output
-      @stubbed_lambda_client = Aws::Lambda::Client.new(region: 'eu-west-1', stub_responses: true)
-      @stubbed_dynamo_client = Aws::DynamoDB::Client.new(stub_responses: true)
-      @stubbed_apig_client = Aws::APIGateway::Client.new(stub_responses: true)
     end
 
     def teardown

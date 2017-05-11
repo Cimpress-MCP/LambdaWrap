@@ -281,7 +281,7 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
             @client.list_aliases(function_name: lambda_name, marker: response.next_marker)
           end
         aliases.concat(response.aliases)
-        return aliases if response.next_marker.nil? || response.next_marker.empty?
+        return aliases if response.aliases.empty? || response.next_marker.nil? || response.next_marker.empty?
       end
     end
 

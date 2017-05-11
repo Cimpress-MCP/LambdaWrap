@@ -6,9 +6,10 @@ end
 
 require 'minitest/autorun'
 require 'minitest/reporters'
+Minitest::Reporters.use!
+
 require 'aws-sdk'
 require 'lambda_wrap'
-Minitest::Reporters.use!
 
 def silence_output
   # Store the original stdout in order to restore later

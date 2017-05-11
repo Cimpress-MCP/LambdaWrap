@@ -1,8 +1,4 @@
-require 'aws-sdk'
-require 'active_support/core_ext/hash'
-
 module LambdaWrap
-  ##
   # The DynamoTable class simplifies Creation, Updating, and Destroying Dynamo DB Tables.
   class DynamoTable < AwsService
     # Sets up the DynamoTable for the Dynamo DB Manager. Preloading the configuration in the constructor.
@@ -18,10 +14,10 @@ module LambdaWrap
     #  that make up the primary key for a table or an index. The attributes in key_schema must also be defined in the
     #  AttributeDefinitions array. Please see AWS Documentation for the Data Model:
     #  http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DataModel.html
-    #  @option options [Integer] :read_capacity (1) The maximum number of strongly consistent reads consumed per second
-    #   before DynamoDB returns a ThrottlingException. Cannot be decreased! Must be at least 1.
-    #  @option options [Integer] :write_capacity (1) The maximum number of writes consumed per second before DynamoDB
-    #   returns a ThrottlingException. Cannot be decreased! Must be at least 1.
+    #  @option options [Integer] :read_capacity_units (1) The maximum number of strongly consistent reads consumed per
+    #   second before DynamoDB returns a ThrottlingException. Must be at least 1.
+    #  @option options [Integer] :write_capacity_units (1) The maximum number of writes consumed per second before
+    #   DynamoDB returns a ThrottlingException. Must be at least 1.
     #  @option options [Array<Hash>] :local_secondary_indexes (nil) One or more local secondary indexes (the maximum is
     #   five) to be created on the table. Each index is scoped to a given partition key value. There is a 10 GB size
     #   limit per partition key value; otherwise, the size of a local secondary index is unconstrained.
@@ -67,30 +63,52 @@ module LambdaWrap
     #   aliases and API Gateway Environments work. This option is supposed to help the user with naming tables instead
     #   of managing the environment names on their own.
     def initialize(options)
-      default_options = { append_environment_on_deploy: false, read_capacity: 1, write_capacity: 1,
+      default_options = { append_environment_on_deploy: false, read_capacity_units: 1, write_capacity_units: 1,
                           local_secondary_indexes: nil, global_secondary_indexes: nil,
                           attribute_definitions: [{ attribute_name: 'Id', attribute_type: 'S' }],
                           key_schema: [{ attribute_name: 'Id', key_type: 'HASH' }] }
 
       options_with_defaults = options.reverse_merge(default_options)
 
-      @table_name = options_with_defaults[:name]
-      raise ArgumentException, ':table_name is required.' unless @table_name
+      @table_name = options_with_defaults[:table_name]
+      raise ArgumentError, ':table_name is required.' unless @table_name
 
       @attribute_definitions = options_with_defaults[:attribute_definitions]
-
       @key_schema = options_with_defaults[:key_schema]
 
-      @read_capacity = options_with_defaults[:read_capacity]
-      @write_capacity = options_with_defaults[:write_capacity]
-      unless @read_capacity >= 1 && @write_capacity >= 1 && (@read_capacity.is_a? Integer) &&
-             (@write_capacity.is_a? Integer)
+      # Verify that all of key_schema is defined in attribute_definitions
+      defined_in_attribute_definitions_guard(@key_schema)
+
+      @read_capacity_units = options_with_defaults[:read_capacity_units]
+      @write_capacity_units = options_with_defaults[:write_capacity_units]
+      provisioned_throughput_guard(read_capacity_units: @read_capacity_units,
+                                   write_capacity_units: @write_capacity_units)
+
+      unless @read_capacity_units >= 1 && @write_capacity_units >= 1 && (@read_capacity_units.is_a? Integer) &&
+             (@write_capacity_units.is_a? Integer)
         raise ArgumentExecption, 'Read and Write Capacity must be positive integers.'
       end
 
       @local_secondary_indexes = options_with_defaults[:local_secondary_indexes]
 
+      if @local_secondary_indexes && @local_secondary_indexes.length > 5
+        raise ArgumentError, 'Can only have 5 LocalSecondaryIndexes per table!'
+      end
+      if @local_secondary_indexes && !@local_secondary_indexes.empty?
+        @local_secondary_indexes.each { |lsindex| defined_in_attribute_definitions_guard(lsindex[:key_schema]) }
+      end
+
       @global_secondary_indexes = options_with_defaults[:global_secondary_indexes]
+
+      if @global_secondary_indexes && @global_secondary_indexes.length > 5
+        raise ArgumentError, 'Can only have 5 GlobalSecondaryIndexes per table1'
+      end
+      if @global_secondary_indexes && !@global_secondary_indexes.empty?
+        @global_secondary_indexes.each do |gsindex|
+          defined_in_attribute_definitions_guard(gsindex[:key_schema])
+          provisioned_throughput_guard(gsindex[:provisioned_throughput])
+        end
+      end
 
       @append_environment_on_deploy = options_with_defaults[:append_environment_on_deploy]
     end
@@ -101,38 +119,45 @@ module LambdaWrap
     # This may take a LONG time for it will wait for any new indexes to be available.
     #
     # @param deploy [LambdaWrap::Environment] Target environment to deploy.
-    def deploy(environment_options, client = nil, region = '')
+    def deploy(environment_options, client = nil, region = 'AWS_REGION')
       super
+
+      puts "Deploying Table: #{@table_name} to Environment: #{environment_options.name}"
+
       full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options.name}" : '')
 
       table_details = retrieve_table_details(full_table_name)
 
-      if !table_details.nil?
+      if table_details.nil?
+        create_table(full_table_name)
+      else
         wait_until_table_is_available(full_table_name) if table_details[:table_status] != 'ACTIVE'
         update_table(full_table_name, table_details)
-      else
-        create_table(full_table_name)
       end
 
       puts "Dynamo Table #{full_table_name} is now available."
+      full_table_name
     end
 
     # Deletes the DynamoDB table specified by the table_name and the Environment name (if append_environment_on_deploy)
     # was specified. Otherwise just deletes the table. User Beware.
-    def teardown(environment_options)
+    def teardown(environment_options, client = nil, region = 'AWS_REGION')
       super
+      puts "Tearingdown Table: #{@table_name} from Environment: #{environment_options.name}"
       full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options.name}" : '')
       delete_table(full_table_name)
-      true
+      full_table_name
     end
 
     # Deletes all DynamoDB tables that are prefixed with the @table_name specified in the constructor.
     # This is an attempt to tear down all DynamoTables that were deployed with the environment name appended.
-    def delete
+    def delete(client = nil, region = 'AWS_REGION')
+      super
       puts "Deleting all tables with prefix: #{@table_name}."
       table_names = retrieve_prefixed_tables(@table_name)
       table_names.each { |table_name| delete_table(table_name) }
       puts "Deleted #{table_names.length} tables."
+      true
     end
 
     private
@@ -149,17 +174,17 @@ module LambdaWrap
 
     ##
     # Waits for the table to be available
-    def wait_until_table_is_available(full_table_name, delay = 5, max_attempts = 25)
+    def wait_until_table_is_available(full_table_name, delay = 5, max_attempts = 5)
       puts "Waiting for Table #{full_table_name} to be available."
-      puts "Waiting with a #{delay} second delay between attempts, for a maximum of #{attempts} attempts."
-      max_time = Time.at(delay * attempts).utc.strftime('%H:%M:%S')
+      puts "Waiting with a #{delay} second delay between attempts, for a maximum of #{max_attempts} attempts."
+      max_time = Time.at(delay * max_attempts).utc.strftime('%H:%M:%S')
       puts "Max waiting time will be: #{max_time} (approximate)."
       # wait until the table has updated to being fully available
       # waiting for ~2min at most; an error will be thrown afterwards
 
       started_waiting_at = Time.now
       max_attempts.times do |attempt|
-        puts "Attempt #{attempt}/#{max_attempts}, \
+        puts "Attempt #{attempt + 1}/#{max_attempts}, \
         #{Time.at(Time.now - started_waiting_at).utc.strftime('%H:%M:%S')}/#{max_time}"
 
         details = retrieve_table_details(full_table_name)
@@ -174,10 +199,10 @@ module LambdaWrap
           puts 'Table is available, but the global indexes are not:'
           puts(updating_indexes.map { |global_index| "#{global_index.index_name}, #{global_index.index_status}" })
         end
-        sleep(delay)
+        Kernel.sleep(delay.seconds)
       end
 
-      raise Exception, "Table #{full_table_name} did not become available after #{max_attempts}. " \
+      raise Exception, "Table #{full_table_name} did not become available after #{max_attempts} attempts. " \
         'Try again later or inspect the AWS console.'
     end
 
@@ -189,8 +214,8 @@ module LambdaWrap
     #     you can use UpdateTable to perform other operations.
     def update_table(full_table_name, table_details)
       # Determine if Provisioned Throughput needs to be updated.
-      if  @read_capacity >= table_details.provisioned_throughput.read_capacity_units &&
-          @write_capacity >= table_details.provisioned_throughput.write_capacity_units
+      if  @read_capacity_units != table_details.provisioned_throughput.read_capacity_units &&
+          @write_capacity_units != table_details.provisioned_throughput.write_capacity_units
 
         update_provisioned_throughput(
           full_table_name, table_details.provisioned_throughput.read_capacity_units,
@@ -202,8 +227,8 @@ module LambdaWrap
       end
 
       # Determine if there are any Global Secondary Indexes to be deleted.
-      global_seconday_indexes_to_delete = build_global_index_deletes_array(table_details.global_secondary_indexes)
-      unless global_seconday_indexes_to_delete.empty?
+      global_secondary_indexes_to_delete = build_global_index_deletes_array(table_details.global_secondary_indexes)
+      unless global_secondary_indexes_to_delete.empty?
         # Loop through each index to delete, and send the update one at a time (restriction on the API).
         until global_secondary_indexes_to_delete.empty?
           delete_global_index(full_table_name, global_secondary_indexes_to_delete.pop)
@@ -234,18 +259,19 @@ module LambdaWrap
 
     def update_provisioned_throughput(full_table_name, old_read, old_write)
       puts "Updating Provisioned Throughtput for #{full_table_name}"
-      puts "Setting Read Capacity Units From: #{old_read} To: #{@read_capacity}"
-      puts "Setting Write Capacty Units From: #{old_write} To: #{@write_capacity}"
+      puts "Setting Read Capacity Units From: #{old_read} To: #{@read_capacity_units}"
+      puts "Setting Write Capacty Units From: #{old_write} To: #{@write_capacity_units}"
       @client.update_table(
         table_name: full_table_name,
-        provisioned_throughput: { read_capacity_units: @read_capacity, write_capacity_units: @write_capacity }
+        provisioned_throughput: { read_capacity_units: @read_capacity_units,
+                                  write_capacity_units: @write_capacity_units }
       )
     end
 
     def build_global_index_deletes_array(current_global_indexes)
       return [] if current_global_indexes.empty?
       current_index_names = current_global_indexes.map(&:index_name)
-      target_index_names = @global_secondary_indexes.map(&:index_name)
+      target_index_names = @global_secondary_indexes.map { |gsindex| gsindex[:index_name] }
       current_index_names - target_index_names
     end
 
@@ -262,33 +288,55 @@ module LambdaWrap
     def build_global_index_updates_array(current_global_indexes)
       indexes_to_update = []
       return indexes_to_update if current_global_indexes.empty?
-      target_indexes
       current_global_indexes.each do |current_index|
         @global_secondary_indexes.each do |target_index|
           # Find the same named index
           next unless target_index[:index_name] == current_index
-          # Skip unless higher Provisioned Throughput is specified
-          break unless (target_index[:provisioned_throughput][:read_capacity_units] >
+          # Skip unless a different ProvisionedThroughput is specified
+          break unless (target_index[:provisioned_throughput][:read_capacity_units] !=
                         current_index.provisioned_throughput.read_capacity_units) ||
-                       (target_index[:provisioned_throughput][:write_capacity_units] >
+                       (target_index[:provisioned_throughput][:write_capacity_units] !=
                         current_index.provisioned_throughput.write_capacity_units)
           indexes_to_update << target_index
         end
       end
+      puts indexes_to_update
+      indexes_to_update
     end
 
     def update_global_indexes(full_table_name, global_secondary_index_updates)
       puts "Updating Global Indexes for Table: #{full_table_name}"
       puts(
         global_secondary_index_updates.map do |index|
-          "#{index[:index_name]} - \
-          Read: #{index[:provisioned_throughput][:read_capacity_units]}, \
-          Write: #{index[:provisioned_throughput][:write_capacity_units]}"
+          "#{index[:index_name]} -\
+\tRead: #{index[:provisioned_throughput][:read_capacity_units]},\
+\tWrite: #{index[:provisioned_throughput][:write_capacity_units]}"
         end
       )
+
       @client.update_table(
         table_name: full_table_name,
         global_secondary_index_updates: global_secondary_index_updates.map { |index| { update: index } }
+      )
+    end
+
+    def build_new_global_indexes_array(current_global_indexes)
+      return [] if !@global_secondary_indexes || @global_secondary_indexes.empty?
+
+      index_names_to_create = @global_secondary_indexes.map { |gsindex| gsindex[:index_name] } -
+                              current_global_indexes.map(&:index_name)
+
+      @global_secondary_indexes.select do |gsindex|
+        index_names_to_create.include?(gsindex[:index_name])
+      end
+    end
+
+    def create_global_indexes(full_table_name, new_global_secondary_indexes)
+      puts "Creating new Global Indexes for Table: #{full_table_name}"
+      puts(new_global_secondary_indexes.map { |index| index[:index_name].to_s })
+      @client.update_table(
+        table_name: full_table_name,
+        global_secondary_index_updates: new_global_secondary_indexes.map { |index| { create: index } }
       )
     end
 
@@ -297,14 +345,14 @@ module LambdaWrap
       @client.create_table(
         table_name: full_table_name, attribute_definitions: @attribute_definitions,
         key_schema: @key_schema,
-        provisioned_throughput: { read_capacity_units: @read_capacity,
-                                  write_capacity_units: @write_capacity },
+        provisioned_throughput: { read_capacity_units: @read_capacity_units,
+                                  write_capacity_units: @write_capacity_units },
         local_secondary_indexes: @local_secondary_indexes,
         global_secondary_indexes: @global_secondary_indexes
       )
       # Wait 60 seconds because "DescribeTable uses an eventually consistent query"
       puts 'Sleeping for 60 seconds...'
-      sleep(60)
+      Kernel.sleep(60)
 
       # Wait for up to 2m.
       wait_until_table_is_available(full_table_name, 5, 24)
@@ -312,7 +360,7 @@ module LambdaWrap
 
     def delete_table(full_table_name)
       puts "Trying to delete Table: #{full_table_name}"
-      table_details = get_table_details(full_table_name)
+      table_details = retrieve_table_details(full_table_name)
       if table_details.nil?
         puts 'Table did not exist. Nothing to delete.'
       else
@@ -323,15 +371,25 @@ module LambdaWrap
     end
 
     def retrieve_prefixed_tables(prefix)
-      all_table_names = []
-      paginated_tables = retrieve_tables
-      all_table_names.concat(paginated_tables)
-      while paginated_tables.length == 100
-        paginated_tables = retrieve_tables(paginated_tables.last)
-        all_table_names.concat(paginated_tables)
+      retrieve_all_table_names.select { |name| name =~ /#{Regexp.quote(prefix)}[a-zA-Z0-9_\-.]*/ }
+    end
+
+    def retrieve_all_table_names
+      tables = []
+      response = nil
+      loop do
+        response =
+          if !response || response.last_evaluated_table_name.nil? || response.last_evaluated_table_name.empty?
+            @client.list_tables(limit: 100)
+          else
+            @client.list_tables(limit: 100, exclusive_start_table_name: response.last_evaluated_table_name)
+          end
+        tables.concat(response.table_names)
+        if response.table_names.empty? || response.last_evaluated_table_name.nil? ||
+           response.last_evaluated_table_name.empty?
+          return tables
+        end
       end
-      # Filter on names with the prefix.
-      all_table_names.select { |name| name =~ /#{Regexp.quote(prefix)}[a-zA-Z0-9_\-.]*/ }
     end
 
     def retrieve_paginated_tables(last_retrieved = nil)
@@ -340,6 +398,23 @@ module LambdaWrap
       else
         @client.list_tables(exclusive_start_table_name: last_retrieved).table_names
       end
+    end
+
+    def defined_in_attribute_definitions_guard(key_schema)
+      if Set.new(key_schema.map { |item| item[:attribute_name] })
+            .subset?(Set.new(@attribute_definitions.map { |item| item[:attribute_name] }))
+        return true
+      end
+      raise ArgumentError, 'Not all keys in the key_schema are defined in the attribute_definitions!'
+    end
+
+    def provisioned_throughput_guard(provisioned_throughput)
+      if provisioned_throughput[:read_capacity_units] >= 1 && provisioned_throughput[:write_capacity_units] >= 1 &&
+         provisioned_throughput[:read_capacity_units].is_a?(Integer) &&
+         provisioned_throughput[:write_capacity_units].is_a?(Integer)
+        return true
+      end
+      raise ArgumentError, 'Read and Write Capacity for all ProvisionedThroughput must be positive integers.'
     end
   end
 end

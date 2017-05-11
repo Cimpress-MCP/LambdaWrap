@@ -20,18 +20,9 @@ class TestLambda < Minitest::Test
       LambdaWrap::Environment.new('UnitTestingInvalid', {}, 'My invalid Env')
     end
 
-    let(:api1) do
-      LambdaWrap::API.new(
-        lambda_client: stubbed_lambda_client, dynamo_client: stubbed_DynamoDB_client,
-        api_gateway_client: stubbed_APIGateway_client
-      )
-    end
-
     def setup
       silence_output
       @stubbed_lambda_client = Aws::Lambda::Client.new(region: 'eu-west-1', stub_responses: true)
-      @stubbed_dynamo_client = Aws::DynamoDB::Client.new(region: 'eu-west-1', stub_responses: true)
-      @stubbed_apig_client = Aws::APIGateway::Client.new(region: 'eu-west-1', stub_responses: true)
     end
 
     def teardown

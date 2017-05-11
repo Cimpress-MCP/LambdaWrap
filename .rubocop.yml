@@ -8,7 +8,7 @@ MethodLength:
   Max: 50
 ClassLength:
   Enabled: true
-  Max: 250
+  Max: 300
   Exclude:
     - 'test/**/*'
 AbcSize:
