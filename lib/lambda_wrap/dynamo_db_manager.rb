@@ -291,13 +291,14 @@ module LambdaWrap
       current_global_indexes.each do |current_index|
         @global_secondary_indexes.each do |target_index|
           # Find the same named index
-          next unless target_index[:index_name] == current_index
+          next unless target_index[:index_name] == current_index[:index_name]
           # Skip unless a different ProvisionedThroughput is specified
           break unless (target_index[:provisioned_throughput][:read_capacity_units] !=
                         current_index.provisioned_throughput.read_capacity_units) ||
                        (target_index[:provisioned_throughput][:write_capacity_units] !=
                         current_index.provisioned_throughput.write_capacity_units)
-          indexes_to_update << target_index
+          indexes_to_update << { index_name: target_index[:index_name],
+                                 provisioned_throughput: target_index[:provisioned_throughput] }
         end
       end
       puts indexes_to_update
@@ -389,14 +390,6 @@ module LambdaWrap
            response.last_evaluated_table_name.empty?
           return tables
         end
-      end
-    end
-
-    def retrieve_paginated_tables(last_retrieved = nil)
-      if last_retrieved.nil?
-        @client.list_tables.table_names
-      else
-        @client.list_tables(exclusive_start_table_name: last_retrieved).table_names
       end
     end
 
