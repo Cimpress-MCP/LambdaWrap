@@ -925,7 +925,7 @@ class TestDynamoTable < Minitest::Test
         end
       end
       it ' should return successfully when updating a table with new Global Index, an Update to a Global Index, \
-and Deleting a Global Index. ' do
+\        and Deleting a Global Index. ' do
         client = Aws::DynamoDB::Client.new(
           region: 'eu-west-1',
           stub_responses: {
@@ -983,6 +983,14 @@ and Deleting a Global Index. ' do
           }
         )
         table_valid.teardown(environment_valid, client, 'eu-west-1').must_equal('Issues-unittesting')
+      end
+      it ' should return successfully upon successful deletion. ' do
+        client = Aws::DynamoDB::Client.new(
+          stub_responses: {
+            delete_table: {}
+          }
+        )
+        valid_table.deploy(environment_valid, client, 'eu-west-1').must_equal('Issues-unittesting')
       end
     end
   end
