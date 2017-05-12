@@ -987,10 +987,88 @@ class TestDynamoTable < Minitest::Test
       it ' should return successfully upon successful deletion. ' do
         client = Aws::DynamoDB::Client.new(
           stub_responses: {
+            describe_table: describe_table_response_valid1,
             delete_table: {}
           }
         )
-        valid_table.deploy(environment_valid, client, 'eu-west-1').must_equal('Issues-unittesting')
+        table_valid.deploy(environment_valid, client, 'eu-west-1').must_equal('Issues-unittesting')
+      end
+    end
+    describe ' when deleting a DynamoTable ' do
+      it ' should return successfully if there is no table to delete. ' do
+        client = Aws::DynamoDB::Client.new(
+          stub_responses: {
+            list_tables: [
+              {
+                table_names: %w[Orders Products Friends],
+                last_evaluated_table_name: 'Friends'
+              },
+              {
+                table_names: %w[Foo Bar]
+              }
+            ],
+            delete_table: 'RuntimeError'
+          }
+        )
+        table_valid.delete(client, 'eu-west-1').must_equal(0)
+      end
+      it ' should return successfully and delete 1 table if not appending environment name. ' do
+        client = Aws::DynamoDB::Client.new(
+          stub_responses: {
+            list_tables: [
+              {
+                table_names: %w[Orders Products Friends],
+                last_evaluated_table_name: 'Friends'
+              },
+              {
+                table_names: %w[Foo Bar Issues]
+              }
+            ],
+            describe_table: describe_table_response_valid1,
+            delete_table: {}
+          }
+        )
+        table_valid.delete(client, 'eu-west-1').must_equal(1)
+      end
+      it ' should return successfully and delete 3 tables if appending environment name. ' do
+        client = Aws::DynamoDB::Client.new(
+          stub_responses: {
+            list_tables: [
+              {
+                table_names: %w[Orders Products Friends Issues-Staging],
+                last_evaluated_table_name: 'Friends'
+              },
+              {
+                table_names: %w[Foo Bar Issues-unittesting Issues-Production]
+              }
+            ],
+            describe_table: [
+              {
+                table:
+                  {
+                    table_name: 'Issues-Staging',
+                    table_status: 'ACTIVE'
+                  }
+              },
+              {
+                table:
+                  {
+                    table_name: 'Issues-unittesting',
+                    table_status: 'ACTIVE'
+                  }
+              },
+              {
+                table:
+                  {
+                    table_name: 'Issues-Production',
+                    table_status: 'ACTIVE'
+                  }
+              }
+            ],
+            delete_table: {}
+          }
+        )
+        table_valid.delete(client, 'eu-west-1').must_equal(3)
       end
     end
   end

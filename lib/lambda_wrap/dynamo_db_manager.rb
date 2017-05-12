@@ -157,7 +157,7 @@ module LambdaWrap
       table_names = retrieve_prefixed_tables(@table_name)
       table_names.each { |table_name| delete_table(table_name) }
       puts "Deleted #{table_names.length} tables."
-      true
+      table_names.length
     end
 
     private
