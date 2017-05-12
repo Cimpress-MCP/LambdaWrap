@@ -118,8 +118,10 @@ module LambdaWrap
     # to Create or Update with the parameters specified from the constructor.
     # This may take a LONG time for it will wait for any new indexes to be available.
     #
-    # @param deploy [LambdaWrap::Environment] Target environment to deploy.
-    def deploy(environment_options, client = nil, region = 'AWS_REGION')
+    # @param environment_options [LambdaWrap::Environment] Target environment to deploy.
+    # @param client [Aws::DynamoDB::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def deploy(environment_options, client, region = 'AWS_REGION')
       super
 
       puts "Deploying Table: #{@table_name} to Environment: #{environment_options.name}"
@@ -140,8 +142,12 @@ module LambdaWrap
     end
 
     # Deletes the DynamoDB table specified by the table_name and the Environment name (if append_environment_on_deploy)
-    # was specified. Otherwise just deletes the table. User Beware.
-    def teardown(environment_options, client = nil, region = 'AWS_REGION')
+    # was specified. Otherwise just deletes the table.
+    #
+    # @param environment_options [LambdaWrap::Environment] Target environment to teardown
+    # @param client [Aws::DynamoDB::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def teardown(environment_options, region = 'AWS_REGION')
       super
       puts "Tearingdown Table: #{@table_name} from Environment: #{environment_options.name}"
       full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options.name}" : '')
@@ -151,7 +157,10 @@ module LambdaWrap
 
     # Deletes all DynamoDB tables that are prefixed with the @table_name specified in the constructor.
     # This is an attempt to tear down all DynamoTables that were deployed with the environment name appended.
-    def delete(client = nil, region = 'AWS_REGION')
+    #
+    # @param client [Aws::DynamoDB::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def delete(client, region = 'AWS_REGION')
       super
       puts "Deleting all tables with prefix: #{@table_name}."
       table_names = retrieve_prefixed_tables(@table_name)

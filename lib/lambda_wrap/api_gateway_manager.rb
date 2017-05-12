@@ -23,7 +23,9 @@ module LambdaWrap
     # Deploys the API Gateway Object to a specified environment
     #
     # @param environment_options [LambdaWrap::Environment] The environment to deploy
-    def deploy(environment_options, client = nil, region = '')
+    # @param client [Aws::APIGateway::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def deploy(environment_options, client, region = 'AWS_REGION')
       super
       puts "Deploying API: #{@api_name} to Environment: #{environment_options.name}"
       @stage_variables = environment_options.variables || {}
@@ -61,7 +63,9 @@ module LambdaWrap
     # Tearsdown environment for API Gateway. Deletes stage.
     #
     # @param environment_options [LambdaWrap::Environment] The environment to teardown.
-    def teardown(environment_options, client = nil, region = '')
+    # @param client [Aws::APIGateway::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def teardown(environment_options, client, region = 'AWS_REGION')
       super
       api_id = get_id_for_api(@api_name)
       if api_id
@@ -73,7 +77,9 @@ module LambdaWrap
     end
 
     # Deletes all stages and API Gateway object.
-    def delete(client = nil, region = '')
+    # @param client [Aws::APIGateway::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def delete(client, region = 'AWS_REGION')
       super
       api_id = get_id_for_api(@api_name)
       if api_id

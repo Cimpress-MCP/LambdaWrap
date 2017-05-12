@@ -1,5 +1,4 @@
 module LambdaWrap
-  ##
   # Superclass for all AWS services and their calls.
   class AwsService
     def deploy(environment, client = nil, region = '')

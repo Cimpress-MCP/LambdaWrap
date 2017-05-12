@@ -8,7 +8,7 @@ module LambdaWrap
   class Lambda < AwsService
     # Initializes a Lambda Manager. Frontloaded configuration.
     #
-    # @param [Hash] options The Configuration for the lambda_name
+    # @param [Hash] options The Configuration for the Lambda
     # @option options [String] :lambda_name The name you want to assign to the function you are uploading. The function
     #  names appear in the console and are returned in the ListFunctions API. Function names are used to specify
     #  functions to other AWS Lambda API operations, such as Invoke. Note that the length constraint applies only to
@@ -100,7 +100,9 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     # is enabled, all Lambda Function versions that don't have an alias pointing to them will be deleted.
     #
     # @param environment_options [LambdaWrap::Environment] The target Environment to deploy
-    def deploy(environment_options, client = nil, region = '')
+    # @param client [Aws::Lambda::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def deploy(environment_options, client, region = 'AWS_REGION')
       super
 
       puts "Deploying Lambda: #{@lambda_name} to Environment: #{environment_options.name}"
@@ -130,7 +132,9 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     # Unreferenced Lambda Function Versions if the option was specified.
     #
     # @param environment_options [LambdaWrap::Environment] The target Environment to teardown.
-    def teardown(environment_options, client = nil, region = '')
+    # @param client [Aws::Lambda::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def teardown(environment_options, client, region = 'AWS_REGION')
       super
       remove_alias(@lambda_name, environment_options.name)
       cleanup_unused_versions(@lambda_name) if @delete_unreferenced_versions
@@ -138,7 +142,10 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     end
 
     # Deletes the Lambda Object with associated versions, code, configuration, and aliases.
-    def delete(client = nil, region = '')
+    #
+    # @param client [Aws::Lambda::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def delete(client, region = 'AWS_REGION')
       super
       puts "Deleting all versions and aliases for Lambda: #{@lambda_name}"
       lambda_details = retrieve_lambda_details
