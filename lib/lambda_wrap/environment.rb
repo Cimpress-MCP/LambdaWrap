@@ -15,7 +15,7 @@ module LambdaWrap
     #  most special characters, and no more than 512 characters.
     # @param description [String] Description of the environment for Stage & Alias descriptions. Must not
     #  exceed 256 characters.
-    def initialize(name, variables = {}, description = '')
+    def initialize(name, variables = {}, description = 'Managed by LambdaWrap')
       raise ArgumentError, 'name must be provided (String)!' unless name && name.is_a?(String)
       # Max Alias Name length is 20 characters.
       raise ArgumentError, "Invalid name format: #{name}" unless /^[a-zA-Z0-9\-\_]{3,20}$/ =~ name
@@ -26,6 +26,8 @@ module LambdaWrap
         next if /^[0-9a-zA-Z\_]{1,64}$/ =~ key && /^[A-Za-z0-9\-.\_~:\/?#&=,]{1,512}$/ =~ value && value.is_a?(String)
         raise ArgumentError, "Invalid Format of variables hash: #{key} => #{value}"
       end
+
+      variables[:environment] = name unless variables[:environment]
       @variables = variables
 
       raise ArgumentError, 'Description must be a String!' unless description.is_a?(String)

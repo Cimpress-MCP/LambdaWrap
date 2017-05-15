@@ -135,14 +135,14 @@ class TestLambda < Minitest::Test
 
     describe ' when deploying the Lambda ' do
       it ' should throw an error a LambdaWrap::Environment is not given. ' do
-        proc { lambda_valid.deploy('Not An Environment') }
+        proc { lambda_valid.deploy('Not An Environment', nil) }
           .must_raise(ArgumentError).to_s
           .must_match(/LambdaWrap::Environment/)
       end
 
       it ' should throw an error if there is no Lambda Client initialized. ' do
         proc {
-          lambda_valid.deploy(environment_valid)
+          lambda_valid.deploy(environment_valid, 'client', 'region')
         }
           .must_raise(Exception).to_s
           .must_match(/AWS client/)

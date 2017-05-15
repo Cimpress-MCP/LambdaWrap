@@ -147,7 +147,7 @@ module LambdaWrap
     # @param environment_options [LambdaWrap::Environment] Target environment to teardown
     # @param client [Aws::DynamoDB::Client] Client to use with SDK. Should be passed in by the API class.
     # @param region [String] AWS Region string. Should be passed in by the API class.
-    def teardown(environment_options, region = 'AWS_REGION')
+    def teardown(environment_options, client, region = 'AWS_REGION')
       super
       puts "Tearingdown Table: #{@table_name} from Environment: #{environment_options.name}"
       full_table_name = @table_name + (@append_environment_on_deploy ? "-#{environment_options.name}" : '')
