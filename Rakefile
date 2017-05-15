@@ -1,9 +1,14 @@
 require 'rake'
 require 'rake/clean'
 require 'rake/testtask'
+require 'yard'
 #require 'lib/lambda_wrap/version'
 
+ROOT = File.dirname(__FILE__)
+
 CLEAN.include('*.gem')
+CLEAN.include(File.join(ROOT, 'reports'))
+CLEAN.include(File.join(ROOT, 'doc'))
 
 desc 'Builds the gem.'
 task build: [:clean, :lint, :unit_test, :integration_test, :create]
@@ -31,6 +36,12 @@ Rake::TestTask.new do |t|
   t.name = :integration_test
   t.options = '--pride'
 end
+
+YARD::Rake::YardocTask.new do |t|
+  t.files = ['lib/**/*.rb']
+end
+
+task :yard => [:clean]
 
 desc 'Creates the ruby gem'
 task create: [:clean] do

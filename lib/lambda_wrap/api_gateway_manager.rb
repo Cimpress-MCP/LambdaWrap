@@ -9,8 +9,8 @@ module LambdaWrap
     # API should be configured through your Swagger File (e.g. Integrations, API Name, Version).
     #
     # @param [Hash] options The Options initialize the API Gateway Manager with.
-    # @options options [String] :swagger_file_path File path the Swagger File to load and parse.
-    # @options options [String] :import_mode ('overwrite') How the API Gateway Object will handle updates.
+    # @option options [String] :swagger_file_path File path the Swagger File to load and parse.
+    # @option options [String] :import_mode ('overwrite') How the API Gateway Object will handle updates.
     #  Accepts 'overwrite' and 'merge'.
     def initialize(options)
       options_with_defaults = options.reverse_merge(import_mode: 'overwrite')

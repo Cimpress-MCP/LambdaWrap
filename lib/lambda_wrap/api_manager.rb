@@ -1,4 +1,3 @@
-# Module Documentation....
 module LambdaWrap
   # Top level class that manages the Serverless Microservice API deployment.
   class API
@@ -10,11 +9,11 @@ module LambdaWrap
     # Constructor for the high level API Manager class.
     #
     # @param [Hash] options The Options to configure the API.
-    # @options options [String] :access_key_id The AWS Access Key Id to communicate with AWS. Will also check the
+    # @option options [String] :access_key_id The AWS Access Key Id to communicate with AWS. Will also check the
     #   environment variables for this value.
-    # @options options [String] :secret_access_key The AWS Secret Access Key to communicate with AWS. Also checks
+    # @option options [String] :secret_access_key The AWS Secret Access Key to communicate with AWS. Also checks
     #   environment variables for this value.
-    # @options options [String] :region The AWS Region to deploy API to. Also checks environment variables for this
+    # @option options [String] :region The AWS Region to deploy API to. Also checks environment variables for this
     #   value.
     def initialize(options = {})
       unless options[:lambda_client] && options[:dynamo_client] && options[:api_gateway_client]

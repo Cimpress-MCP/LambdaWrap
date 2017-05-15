@@ -1,7 +1,7 @@
 source 'https://rubygems.org' do
   gem 'rake'
   gem 'rubocop', :require => false, :group => :test if RUBY_VERSION >= '2.0.0'
-  gem 'yard'
+  gem 'yard', :require => false, :group => :test
   gem 'minitest'
   gem 'minitest-reporters'
   gem 'aws-sdk'

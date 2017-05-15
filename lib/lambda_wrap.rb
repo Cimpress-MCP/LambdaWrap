@@ -1,5 +1,3 @@
-# :nodoc:
-
 require 'lambda_wrap/version'
 
 require 'aws-sdk'

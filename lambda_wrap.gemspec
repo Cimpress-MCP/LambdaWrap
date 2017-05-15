@@ -16,7 +16,7 @@ Gem::Specification.new do |s|
   s.platform      = Gem::Platform::RUBY
   s.require_paths = ['lib']
   s.add_runtime_dependency('aws-sdk', '~> 2')
-  s.add_runtime_dependency('rubyzip', '~> 1.2')
+  s.add_runtime_dependency('activesupport', '~> 4')
   s.license = 'Apache-2.0'
   s.required_ruby_version = '>= 1.9.3'
 end

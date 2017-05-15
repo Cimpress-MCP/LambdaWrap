@@ -1,5 +1,7 @@
 module LambdaWrap
   # Superclass for all AWS services and their calls.
+  # @abstract
+  # @since 1.0.0
   class AwsService
     def deploy(environment, client, region = 'AWS_REGION')
       unless environment.is_a?(LambdaWrap::Environment)

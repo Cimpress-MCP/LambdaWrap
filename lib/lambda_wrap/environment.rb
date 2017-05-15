@@ -1,5 +1,4 @@
 module LambdaWrap
-  ##
   # Environment class to pass to the deploy and teardown
   class Environment
     attr_reader :name

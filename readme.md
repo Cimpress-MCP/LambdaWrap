@@ -1,9 +1,17 @@
 # LambdaWrap
 
 [![BuildStatus](https://travis-ci.org/Cimpress-MCP/LambdaWrap.svg?branch=master)](https://travis-ci.org/Cimpress-MCP/LambdaWrap) [![GemVersion](https://badge.fury.io/rb/lambda_wrap.svg)](https://badge.fury.io/rb/lambda_wrap)
+[![Code Climate](https://codeclimate.com/github/Cimpress-MCP/LambdaWrap/badges/gpa.svg)](https://codeclimate.com/github/Cimpress-MCP/LambdaWrap)
 
-A ruby library to simplify deployment of a Serverless RESTful API, coordinating the AWS Services: AWS Lambda, API Gateway and DynamoDB.
+A ruby library to simplify deployment of a Serverless RESTful API, coordinating the AWS Services: AWS Lambda, API Gateway and DynamoDB, agnostic of the Runtime engine and Package structure.
 
+
+* [**Home**](https://github.com/Cimpress-MCP/LambdaWrap)
+* [**YARD Docs**](http://www.rubydoc.info/github/Cimpress-MCP/LambdaWrap)
+* [**Bugs**](https://github.com/Cimpress-MCP/LambdaWrap/issues)
+
+
+## Description
 LambdaWrap is a very simple way to manage and automate deployment of AWS Lambda functions and related functionality. It is targeted to simple use cases and focuses only on deployment automation. Its primary goal is to support developers who want to be able to spend less than 1h on infrastructure and focus on the actual value delivered by their web service.
 
 Technically, it uses the [AWS SDK](https://aws.amazon.com/sdk-for-ruby/) directly and avoids complexities such as [AWS Cloudformation](https://aws.amazon.com/cloudformation/). Due to its focus on simplifying deployment, it has no built in support to run the functions locally, such as [serverless](https://github.com/serverless/serverless) has.
@@ -15,7 +23,9 @@ Similarly, your API and integrations must be defined in an [Open API Specificait
 
 Cursory knowledge of AWS Services is required: [Lambda](https://aws.amazon.com/lambda/), [DynamoDB](https://aws.amazon.com/dynamodb/), [API Gateway](https://aws.amazon.com/api-gateway).
 
-####Note on Function Versioning
+
+**Note on Function Versioning**
+
 Lambda Function Version Numbers are a strictly increasing integer function. Reverting function versions is not supported with LambdaWrap, and should not be considered in your stack. If the Behavior of your application needs to reverted, I recommend reverting the change in version control, and making a new deployment to the same environment.
 
 Similarly, aliases should not be assigned to any function version lower than its current setting.
@@ -24,8 +34,7 @@ The `LambdaWrap::Lambda` has an option to delete function versions from the Lamb
 
 ## Installation
 
-_Recommended:_
-Use Bundler for all your ruby projects!
+_Recommended:_ Use Bundler for all your ruby projects!
 
 Add the lambda_wrap gem to your Gemfile:
 ```ruby
@@ -252,7 +261,7 @@ my_api.delete
 
 ## Examples
 ### Configuration File
-```yaml
+```
 lambdas:
   - lambda_name: 'Lambda1'
     handler: 'Lambda1Nodejs.handler'
@@ -405,6 +414,8 @@ end
 
 ## Contributing
 
-We appreciate contributions. Fork the repository and come up with a pull request. Thank you!
+We appreciate contributions.
+If you would like to contribute, please fork the repository, branch off master into a feature branch, then open a pull request.
+Thanks in advance!
 
 We will focus the development of LambdaWrap on lowering the initial costs of setting up a multi-environment supported deployment pipeline for AWS Lambda based services.
