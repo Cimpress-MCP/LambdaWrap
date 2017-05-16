@@ -1,5 +1,6 @@
 module LambdaWrap
   # Top level class that manages the Serverless Microservice API deployment.
+  # @since 1.0
   class API
     attr_reader :lambdas
     attr_reader :dynamo_tables
@@ -15,6 +16,8 @@ module LambdaWrap
     #   environment variables for this value.
     # @option options [String] :region The AWS Region to deploy API to. Also checks environment variables for this
     #   value.
+    #
+    # @todo Allow clients to pass in a YAML file for all construction.
     def initialize(options = {})
       unless options[:lambda_client] && options[:dynamo_client] && options[:api_gateway_client]
         access_key_id = options[:access_key_id] || ENV['AWS_ACCESS_KEY_ID'] || ENV['ACCESS_KEY'] ||

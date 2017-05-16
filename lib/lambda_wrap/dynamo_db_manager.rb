@@ -1,5 +1,6 @@
 module LambdaWrap
   # The DynamoTable class simplifies Creation, Updating, and Destroying Dynamo DB Tables.
+  # @since 1.0
   class DynamoTable < AwsService
     # Sets up the DynamoTable for the Dynamo DB Manager. Preloading the configuration in the constructor.
     #

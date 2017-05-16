@@ -1,6 +1,7 @@
 module LambdaWrap
   # The ApiGateway class simplifies creation, deployment, and management of API Gateway objects.
   # The specification for the API MUST be detailed in a provided Open API Formatted file (fka Swagger).
+  # @since 1.0
   class ApiGateway < AwsService
     attr_reader :specification
     attr_reader :import_mode
@@ -32,14 +33,15 @@ module LambdaWrap
       @stage_variables.store('environment', environment_options.name)
 
       api_id = get_id_for_api(@api_name)
-      service_response = if api_id
-                           @client.put_rest_api(
-                             fail_on_warnings: false, mode: @import_mode, rest_api_id:
-                             api_id, body: @specification.to_s
-                           )
-                         else
-                           @client.import_rest_api(fail_on_warnings: false, body: @specification.to_s)
-                         end
+      service_response =
+        if api_id
+          @client.put_rest_api(
+            fail_on_warnings: false, mode: @import_mode, rest_api_id:
+            api_id, body: @specification.to_s
+          )
+        else
+          @client.import_rest_api(fail_on_warnings: false, body: @specification.to_s)
+        end
 
       if service_response.nil? || service_response.id.nil?
         raise "Failed to create API gateway with name #{@api_name}"

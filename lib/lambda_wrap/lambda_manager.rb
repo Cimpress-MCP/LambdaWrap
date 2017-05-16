@@ -5,6 +5,7 @@ module LambdaWrap
   # Lambda Manager class.
   # Front loads the configuration to the constructor so that the developer can be more declarative with configuration
   # and deployments.
+  # @since 1.0
   class Lambda < AwsService
     # Initializes a Lambda Manager. Frontloaded configuration.
     #
