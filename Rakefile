@@ -2,7 +2,7 @@ require 'rake'
 require 'rake/clean'
 require 'rake/testtask'
 require 'yard'
-#require 'lib/lambda_wrap/version'
+require './lib/lambda_wrap/version'
 
 ROOT = File.dirname(__FILE__)
 
