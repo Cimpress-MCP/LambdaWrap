@@ -96,7 +96,7 @@ module LambdaWrap
     # @param [LambdaWrap::Environment] environment_options the Environment to deploy
     def deploy(environment_options)
       environment_parameter_guard(environment_options)
-      if dynamo_tables.empty? && lambdas.empty? && api_gateways.empty?
+      if no_op?
         puts 'Nothing to deploy.'
         return
       end
@@ -151,7 +151,7 @@ module LambdaWrap
     # @param [LambdaWrap::Environment] environment_options the Environment to teardown
     def teardown(environment_options)
       environment_parameter_guard(environment_options)
-      if dynamo_tables.empty? && lambdas.empty? && api_gateways.empty?
+      if no_op?
         puts 'Nothing to teardown.'
         return
       end
@@ -261,6 +261,10 @@ module LambdaWrap
     def parameter_guard(parameter, type, type_name)
       return if parameter.is_a?(type)
       raise ArgumentError, "Must pass a #{type_name} to the API Manager. Got: #{parameter}"
+    end
+
+    def no_op?
+      dynamo_tables.empty? && lambdas.empty? && api_gateways.empty?
     end
   end
 end
