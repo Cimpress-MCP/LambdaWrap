@@ -1,5 +1,15 @@
 module LambdaWrap
   # Environment class to pass to the deploy and teardown
+  #
+  # @!attribute [r] name
+  #   @return [String] The descriptive name of the environment.
+  #
+  # @!attribute [r] description
+  #   @return [String] The description of the environment.
+  #
+  # @!attribute [r] variables
+  #   @return [Hash] The Hash of environment variables to deploy with the environment.
+  #
   # @since 1.0
   class Environment
     attr_reader :name

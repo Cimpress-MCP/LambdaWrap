@@ -1,5 +1,18 @@
 module LambdaWrap
   # Top level class that manages the Serverless Microservice API deployment.
+  #
+  # @!attribute [r] lambdas
+  #   @return [Array<LambdaWrap::Lambda>] The List of Lambdas to be deployed with the API.
+  #
+  # @!attribute [r] dynamo_tables
+  #   @return [Array<LambdaWrap::DynamoTables>] The List of DynamoTables to be deployed with the API.
+  #
+  # @!attribute [r] api_gateways
+  #   @return [Array<LambdaWrap::ApiGateway>] The List of API Gateways to be deployed with the API.
+  #
+  # @!attribute [r] region
+  #   @return [String] The AWS Region to deploy the API.
+  #
   # @since 1.0
   class API
     attr_reader :lambdas
@@ -47,7 +60,7 @@ module LambdaWrap
 
     # Add Lambda Object(s) to the API.
     #
-    # @param [LambdaWrap::Lambda, Array<LambdaWrap::Lambda>] new_lambda Splat of LambdaWrap Lambda
+    # @param [LambdaWrap::Lambda Array<LambdaWrap::Lambda>] new_lambda Splat of LambdaWrap Lambda
     #  objects to add to the API. Overloaded as:
     #  add_lambda(lambda1) OR  add_lambda([lambda1, lambda2]) OR add_lambda(lambda1, lambda2)
     def add_lambda(*new_lambda)

@@ -1,18 +1,21 @@
 module LambdaWrap
   # The ApiGateway class simplifies creation, deployment, and management of API Gateway objects.
   # The specification for the API MUST be detailed in a provided Open API Formatted file (fka Swagger).
+  #
+  # @!attribute [r] specification
+  #   @return [Hash] The Swagger spec parsed into a Hash
+  #
   # @since 1.0
   class ApiGateway < AwsService
     attr_reader :specification
-    attr_reader :import_mode
 
     # Initializes the APIGateway Manager Object. A significant majority of the configuration of your
     # API should be configured through your Swagger File (e.g. Integrations, API Name, Version).
     #
     # @param [Hash] options The Options initialize the API Gateway Manager with.
     # @option options [String] :swagger_file_path File path the Swagger File to load and parse.
-    # @option options [String] :import_mode ('overwrite') How the API Gateway Object will handle updates.
-    #  Accepts 'overwrite' and 'merge'.
+    # @option options [String] :import_mode (overwrite) How the API Gateway Object will handle updates.
+    #  Accepts <tt>overwrite</tt> and <tt>merge</tt>.
     def initialize(options)
       options_with_defaults = options.reverse_merge(import_mode: 'overwrite')
       @specification = extract_specification(options_with_defaults[:swagger_file_path])

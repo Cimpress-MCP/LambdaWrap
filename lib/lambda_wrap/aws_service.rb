@@ -1,5 +1,5 @@
 module LambdaWrap
-  # Superclass for all AWS services and their calls.
+  # Super Abstract Class for all AWS services and their calls.
   # @abstract
   # @since 1.0
   class AwsService
