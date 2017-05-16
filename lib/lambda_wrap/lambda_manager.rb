@@ -84,12 +84,15 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
       end
       @memory_size = options_with_defaults[:memory_size]
 
-      @subnet_ids = options_with_defaults[:subnet_ids]
-
-      @security_group_ids = options_with_defaults[:security_group_ids]
-
-      if @subnet_ids.empty? ^ @security_group_ids.empty?
+      # VPC
+      if options_with_defaults[:subnet_ids].empty? ^ options_with_defaults[:security_group_ids].empty?
         raise ArgumentError, 'Must supply values for BOTH Subnet Ids and Security Group ID if VPC is desired.'
+      end
+      unless options_with_defaults[:subnet_ids].empty?
+        @vpc_configuration = {
+          subnet_ids: options_with_defaults[:subnet_ids],
+          security_group_ids: options_with_defaults[:security_group_ids]
+        }
       end
 
       @delete_unreferenced_versions = options_with_defaults[:delete_unreferenced_versions]
@@ -121,9 +124,9 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
         function_version = update_lambda_code
       end
 
-      create_alias(@lambda_name, function_version, environment_options.name, environment_options.description)
+      create_alias(function_version, environment_options.name, environment_options.description)
 
-      cleanup_unused_versions(@lambda_name) if @delete_unreferenced_versions
+      cleanup_unused_versions if @delete_unreferenced_versions
 
       puts "Lambda: #{@lambda_name} successfully deployed!"
       true
@@ -137,8 +140,8 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     # @param region [String] AWS Region string. Should be passed in by the API class.
     def teardown(environment_options, client, region = 'AWS_REGION')
       super
-      remove_alias(@lambda_name, environment_options.name)
-      cleanup_unused_versions(@lambda_name) if @delete_unreferenced_versions
+      remove_alias(environment_options.name)
+      cleanup_unused_versions if @delete_unreferenced_versions
       true
     end
 
@@ -175,18 +178,10 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
       puts "Creating New Lambda Function: #{@lambda_name}...."
       puts "Runtime Engine: #{@runtime}, Timeout: #{@timeout}, Memory Size: #{@memory_size}."
 
-      unless @subnet_ids.empty? && @security_group_ids.empty?
-        vpc_configuration = {
-          subnet_ids: @subnet_ids,
-          security_group_ids: @security_group_ids
-        }
-        puts "With VPC Configuration: Subnets: #{@subnet_ids}, Security Groups: #{@security_group_ids}"
-      end
-
       lambda_version = @client.create_function(
         function_name: @lambda_name, runtime: @runtime, role: @role_arn, handler: @handler,
         code: { zip_file: @path_to_zip_file }, description: @description, timeout: @timeout, memory_size: @memory_size,
-        vpc_config: vpc_configuration, publish: true
+        vpc_config: @vpc_configuration, publish: true
       ).version
       puts "Successfully created Lambda: #{@lambda_name}!"
       lambda_version
@@ -195,17 +190,14 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     def update_lambda_config
       puts "Updating Lambda Config for #{@lambda_name}..."
       puts "Runtime Engine: #{@runtime}, Timeout: #{@timeout}, Memory Size: #{@memory_size}."
-      unless @subnet_ids.empty? && @security_group_ids.empty?
-        vpc_configuration = {
-          subnet_ids: @subnet_ids,
-          security_group_ids: @security_group_ids
-        }
-        puts "With VPC Configuration: Subnets: #{@subnet_ids}, Security Groups: #{@security_group_ids}"
+      if @vpc_configuration
+        puts "With VPC Configuration: Subnets: #{@vpc_configuration[:subnet_ids]}, Security Groups: \
+#{@vpc_configuration[:security_group_ids]}"
       end
 
       @client.update_function_configuration(
         function_name: @lambda_name, role: @role_arn, handler: @handler, description: @description, timeout: @timeout,
-        memory_size: @memory_size, vpc_config: vpc_configuration, runtime: @runtime
+        memory_size: @memory_size, vpc_config: @vpc_configuration, runtime: @runtime
       )
 
       puts "Successfully updated Lambda configuration for #{@lambda_name}"
@@ -221,87 +213,81 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
       response.version
     end
 
-    ##
-    # Creates an alias for a given lambda function version.
-    #
-    # *Arguments*
-    # [lambda_name]    The lambda function name for which the alias should be created.
-    # [func_version]    The lambda function versino to which the alias should point.
-    # [alias_name]      The name of the alias, matching the LambdaWrap environment concept.
-    def create_alias(lambda_name, func_version, alias_name, alias_description)
-      if alias_exist?(lambda_name, alias_name)
+    def create_alias(func_version, alias_name, alias_description)
+      if alias_exist?(alias_name)
         @client.create_alias(
-          function_name: lambda_name, name: alias_name, function_version: func_version,
+          function_name: @lambda_name, name: alias_name, function_version: func_version,
           description: alias_description || 'Alias managed by LambdaWrap'
         )
       else
         @client.update_alias(
-          function_name: lambda_name, name: alias_name, function_version: func_version,
+          function_name: @lambda_name, name: alias_name, function_version: func_version,
           description: alias_description || 'Alias managed by LambdaWrap'
         )
       end
-      puts "Created Alias: #{alias_name} for Lambda: #{lambda_name} v#{func_version}."
+      puts "Created Alias: #{alias_name} for Lambda: #{@lambda_name} v#{func_version}."
     end
 
-    def remove_alias(lambda_name, alias_name)
-      puts "Deleting Alias: #{alias_name} for #{lambda_name}"
-      @client.delete_alias(function_name: lambda_name, name: alias_name)
+    def remove_alias(alias_name)
+      puts "Deleting Alias: #{alias_name} for #{@lambda_name}"
+      @client.delete_alias(function_name: @lambda_name, name: alias_name)
     end
 
-    def cleanup_unused_versions(lambda_name)
-      puts "Cleaning up unused function versions for #{lambda_name}."
-      function_versions_to_be_deleted = retrieve_all_function_versions(lambda_name) -
-                                        retrieve_function_versions_used_in_aliases(lambda_name)
+    def cleanup_unused_versions
+      puts "Cleaning up unused function versions for #{@lambda_name}."
+      function_versions_to_be_deleted = retrieve_all_function_versions -
+                                        retrieve_function_versions_used_in_aliases
 
       return if function_versions_to_be_deleted.empty?
 
       function_versions_to_be_deleted.each do |version|
         puts "Deleting function version: #{version}."
-        @client.delete_function(function_name: lambda_name, qualifier: version)
+        @client.delete_function(function_name: @lambda_name, qualifier: version)
       end
 
       puts "Cleaned up #{function_versions_to_be_deleted.length} unused versions."
     end
 
-    def retrieve_all_function_versions(lambda_name)
+    def retrieve_all_function_versions
       function_versions = []
       response = nil
       loop do
         response =
           if !response || response.next_marker.nil? || response.next_marker.empty?
-            @client.list_versions_by_function(function_name: lambda_name)
+            @client.list_versions_by_function(function_name: @lambda_name)
           else
-            @client.list_versions_by_function(function_name: lambda_name, marker: response.next_marker)
+            @client.list_versions_by_function(function_name: @lambda_name, marker: response.next_marker)
           end
         function_versions.concat(response.versions.map(&:version))
         return function_versions if response.next_marker.nil? || response.next_marker.empty?
       end
     end
 
-    def retrieve_all_aliases(lambda_name)
+    def retrieve_all_aliases
       aliases = []
       response = nil
       loop do
-        response =
-          if !response || response.next_marker.nil? || response.next_marker.empty?
-            @client.list_aliases(function_name: lambda_name)
-          else
-            @client.list_aliases(function_name: lambda_name, marker: response.next_marker)
-          end
+        response = invoke_client_method_with_optional_marker(response, :list_aliases)
         aliases.concat(response.aliases)
         return aliases if response.aliases.empty? || response.next_marker.nil? || response.next_marker.empty?
       end
     end
 
-    def retrieve_function_versions_used_in_aliases(lambda_name)
+    def retrieve_function_versions_used_in_aliases
       function_versions_with_aliases = Set.new []
-      all_aliases = retrieve_all_aliases(lambda_name)
-      function_versions_with_aliases.merge(all_aliases.map(&:function_version))
-      function_versions_with_aliases.to_a
+      function_versions_with_aliases.merge(retrieve_all_aliases.map(&:function_version)).to_a
     end
 
-    def alias_exist?(lambda_name, alias_name)
-      retrieve_all_aliases(lambda_name).detect { |a| a.name == alias_name }
+    def alias_exist?(alias_name)
+      retrieve_all_aliases.detect { |a| a.name == alias_name }
+    end
+
+    def invoke_client_method_with_optional_marker(response, method_symbol)
+      if !response || response.next_marker.nil? || response.next_marker.empty?
+        @client.send(method_symbol, function_name: @lambda_name)
+      else
+        @client.send(method_symbol, function_name: @lambda_name, marker: response.next_marker)
+      end
     end
   end
 end

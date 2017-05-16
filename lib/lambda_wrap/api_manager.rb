@@ -95,7 +95,7 @@ module LambdaWrap
     #
     # @param [LambdaWrap::Environment] environment_options the Environment to deploy
     def deploy(environment_options)
-      parameter_guard(environment_options, LambdaWrap::Environment, 'LambdaWrap::Environment')
+      environment_parameter_guard(environment_options)
       if dynamo_tables.empty? && lambdas.empty? && api_gateways.empty?
         puts 'Nothing to deploy.'
         return
@@ -150,7 +150,7 @@ module LambdaWrap
     #
     # @param [LambdaWrap::Environment] environment_options the Environment to teardown
     def teardown(environment_options)
-      parameter_guard(environment_options, LambdaWrap::Environment, 'LambdaWrap::Environment')
+      environment_parameter_guard(environment_options)
       if dynamo_tables.empty? && lambdas.empty? && api_gateways.empty?
         puts 'Nothing to teardown.'
         return
@@ -253,6 +253,10 @@ module LambdaWrap
     end
 
     private
+
+    def environment_parameter_guard(parameter)
+      parameter_guard(parameter, LambdaWrap::Environment, 'LambdaWrap::Environment')
+    end
 
     def parameter_guard(parameter, type, type_name)
       return if parameter.is_a?(type)
