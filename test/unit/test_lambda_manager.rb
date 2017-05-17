@@ -30,6 +30,10 @@ class TestLambda < Minitest::Test
     end
 
     class FileOpenDouble
+      def initialize
+        super
+      end
+
       def read
         'BLOB DATA'
       end
@@ -184,7 +188,7 @@ class TestLambda < Minitest::Test
 
       it ' should update function code, configuration and create a new alias successfully. ' do
         File.stub :exist?, true do
-          File.stub :open, FileOpenDouble.new do
+          File.stub(:open, FileOpenDouble.new) do
             lambda_client = Aws::Lambda::Client.new(
               stub_responses: {
                 get_function: { configuration: { version: '3' } },
@@ -201,7 +205,7 @@ class TestLambda < Minitest::Test
 
       it ' should update function code, configuration, and alias successfully.' do
         File.stub :exist?, true do
-          File.stub :open, FileOpenDouble.new do
+          File.stub(:open, FileOpenDouble.new) do
             lambda_client = Aws::Lambda::Client.new(
               stub_responses: {
                 get_function: { configuration: { version: '3' } },
@@ -218,7 +222,7 @@ class TestLambda < Minitest::Test
 
       it ' should update function code, configuration, and alias successfully, and remove unused versions.' do
         File.stub :exist?, true do
-          File.stub :open, FileOpenDouble.new do
+          File.stub(:open, FileOpenDouble.new) do
             lambda_client = Aws::Lambda::Client.new(
               stub_responses: {
                 get_function: { configuration: { version: '3' } },

@@ -11,6 +11,10 @@ class TestApiGateway < Minitest::Test
     end
 
     class FileOpenDouble
+      def initialize
+        super
+      end
+
       def read
         'BLOB DATA'
       end
