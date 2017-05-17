@@ -13,6 +13,8 @@ CLEAN.include(File.join(ROOT, 'doc'))
 desc 'Builds the gem.'
 task build: [:clean, :lint, :unit_test, :integration_test, :create]
 
+task commit_job: [:clean, :lint, :unit_test, :integration_test, :cc_test_reporter, :yard, :create]
+
 desc 'Runs Rubocop'
 task :lint do
   if RUBY_VERSION >= '2.0.0'
@@ -21,24 +23,28 @@ task :lint do
   end
 end
 
-Rake::TestTask.new do |t|
+Rake::TestTask.new(:unit_test) do |t|
   t.test_files = FileList['test/unit/test*.rb']
   t.warning = false
   t.verbose = true
-  t.name = :unit_test
   t.options = '--pride'
 end
 
-Rake::TestTask.new do |t|
+Rake::TestTask.new(:integration_test) do |t|
   t.test_files = FileList['test/integration/test*.rb']
   t.warning = false
   t.verbose = true
-  t.name = :integration_test
   t.options = '--pride'
 end
 
 YARD::Rake::YardocTask.new do |t|
   t.files = ['lib/**/*.rb']
+end
+
+task :cc_test_reporter => [:unit_test] do
+  ENV['CODECLIMATE_REPO_TOKEN'] = 'c6ffcbf1b751dcca3f601f90e64149b0d9e475d73f1eb895823334870bc27a9d'
+  cmd = 'bundle exec codeclimate-test-reporter reports/coverage/.resultset.json'
+  raise 'Could not run CodeClimate Test Reporter.' if !system(cmd)
 end
 
 task :yard => [:clean]

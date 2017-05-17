@@ -7,5 +7,7 @@ source 'https://rubygems.org' do
   gem 'aws-sdk'
   gem 'activesupport', '~> 4.2', '>= 4.2.8', :require => true
   gem 'simplecov', :require => false, :group => :test
+  gem 'codeclimate-test-reporter', '~> 1'
+  gem 'gem-release', :require => false, :group => :test
 end
 gemspec
