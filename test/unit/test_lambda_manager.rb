@@ -29,6 +29,12 @@ class TestLambda < Minitest::Test
       enable_output
     end
 
+    class FileOpenDouble
+      def read
+        'BLOB DATA'
+      end
+    end
+
     describe ' When constructing the Lambda ' do
       it ' should throw an error if the Lambda Name is not given. ' do
         proc { LambdaWrap::Lambda.new(foo: 'bar') }
@@ -178,73 +184,79 @@ class TestLambda < Minitest::Test
 
       it ' should update function code, configuration and create a new alias successfully. ' do
         File.stub :exist?, true do
-          lambda_client = Aws::Lambda::Client.new(
-            stub_responses: {
-              get_function: { configuration: { version: '3' } },
-              update_function_configuration: { version: '3' },
-              update_function_code: { version: '4' },
-              list_aliases: { aliases: [{ name: 'WrongName' }] },
-              create_alias: { name: 'UnitTestingEnvironmentValid' }
-            }
-          )
-          lambda_valid.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
+          File.stub :open, FileOpenDouble.new do
+            lambda_client = Aws::Lambda::Client.new(
+              stub_responses: {
+                get_function: { configuration: { version: '3' } },
+                update_function_configuration: { version: '3' },
+                update_function_code: { version: '4' },
+                list_aliases: { aliases: [{ name: 'WrongName' }] },
+                create_alias: { name: 'UnitTestingEnvironmentValid' }
+              }
+            )
+            lambda_valid.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
+          end
         end
       end
 
       it ' should update function code, configuration, and alias successfully.' do
         File.stub :exist?, true do
-          lambda_client = Aws::Lambda::Client.new(
-            stub_responses: {
-              get_function: { configuration: { version: '3' } },
-              update_function_configuration: { version: '3' },
-              update_function_code: { version: '4' },
-              list_aliases: { aliases: [{ name: 'UnitTestingValid' }, { name: 'WrongName' }] },
-              update_alias: { name: 'UnitTestingEnvironmentValid' }
-            }
-          )
-          lambda_valid.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
+          File.stub :open, FileOpenDouble.new do
+            lambda_client = Aws::Lambda::Client.new(
+              stub_responses: {
+                get_function: { configuration: { version: '3' } },
+                update_function_configuration: { version: '3' },
+                update_function_code: { version: '4' },
+                list_aliases: { aliases: [{ name: 'UnitTestingValid' }, { name: 'WrongName' }] },
+                update_alias: { name: 'UnitTestingEnvironmentValid' }
+              }
+            )
+            lambda_valid.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
+          end
         end
       end
 
       it ' should update function code, configuration, and alias successfully, and remove unused versions.' do
         File.stub :exist?, true do
-          lambda_client = Aws::Lambda::Client.new(
-            stub_responses: {
-              get_function: { configuration: { version: '3' } },
-              update_function_configuration: { version: '3' },
-              update_function_code: { version: '4' },
-              list_aliases: [
-                { next_marker: 'alias_marker',
-                  aliases: [{ function_version: '1', name: 'UnitTestingValid' },
-                            { function_version: '3', name: 'WrongName' },
-                            { function_version: '3', name: 'DupAlias' }] },
-                {
-                  aliases: [{ function_version: '1', name: 'AnotherDuplicate' }]
-                },
-                { next_marker: 'alias_marker',
-                  aliases: [{ function_version: '5', name: 'UnitTestingValid' },
-                            { function_version: '3', name: 'WrongName' },
-                            { function_version: '3', name: 'DupAlias' }] },
-                {
-                  aliases: [{ function_version: '1', name: 'AnotherDuplicate' }]
-                }
-              ],
-              update_alias: { name: 'UnitTestingValid' },
-              list_versions_by_function: [
-                { versions: [{ version: '1' }, { version: '2' }, { version: '3' }], next_marker: 'marker' },
-                { versions: [{ version: '4' }] }
-              ],
-              delete_function: {}
-            }
-          )
-          lambda_valid_with_delete = LambdaWrap::Lambda.new(
-            lambda_name: 'CleanupUpdateLambda', handler: 'handlerValid', role_arn: 'role_arnValid',
-            path_to_zip_file: 'valid/path/to/file.zip', runtime: 'nodejs4.3', description: 'descriptionValid',
-            timeout: 30, memory_size: 256, subnet_ids: %w[subnet1 subnet2 subnet3],
-            security_group_ids: ['securitygroupValid'], delete_unreferenced_versions: true
-          )
+          File.stub :open, FileOpenDouble.new do
+            lambda_client = Aws::Lambda::Client.new(
+              stub_responses: {
+                get_function: { configuration: { version: '3' } },
+                update_function_configuration: { version: '3' },
+                update_function_code: { version: '4' },
+                list_aliases: [
+                  { next_marker: 'alias_marker',
+                    aliases: [{ function_version: '1', name: 'UnitTestingValid' },
+                              { function_version: '3', name: 'WrongName' },
+                              { function_version: '3', name: 'DupAlias' }] },
+                  {
+                    aliases: [{ function_version: '1', name: 'AnotherDuplicate' }]
+                  },
+                  { next_marker: 'alias_marker',
+                    aliases: [{ function_version: '5', name: 'UnitTestingValid' },
+                              { function_version: '3', name: 'WrongName' },
+                              { function_version: '3', name: 'DupAlias' }] },
+                  {
+                    aliases: [{ function_version: '1', name: 'AnotherDuplicate' }]
+                  }
+                ],
+                update_alias: { name: 'UnitTestingValid' },
+                list_versions_by_function: [
+                  { versions: [{ version: '1' }, { version: '2' }, { version: '3' }], next_marker: 'marker' },
+                  { versions: [{ version: '4' }] }
+                ],
+                delete_function: {}
+              }
+            )
+            lambda_valid_with_delete = LambdaWrap::Lambda.new(
+              lambda_name: 'CleanupUpdateLambda', handler: 'handlerValid', role_arn: 'role_arnValid',
+              path_to_zip_file: 'valid/path/to/file.zip', runtime: 'nodejs4.3', description: 'descriptionValid',
+              timeout: 30, memory_size: 256, subnet_ids: %w[subnet1 subnet2 subnet3],
+              security_group_ids: ['securitygroupValid'], delete_unreferenced_versions: true
+            )
 
-          lambda_valid_with_delete.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
+            lambda_valid_with_delete.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
+          end
         end
       end
     end

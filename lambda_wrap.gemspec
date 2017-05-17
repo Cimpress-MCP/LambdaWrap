@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   s.summary       = 'Easy deployment of AWS Lambda functions and dependencies.'
   s.description   = 'This gem wraps the AWS SDK to simplify deployment of AWS \
                       Lambda functions backed by API Gateway and DynamoDB.'
-  s.files         = `git ls-files app lib`.split("\n")
+  s.files         = Dir['lib/**/*.rb']
   s.platform      = Gem::Platform::RUBY
   s.require_paths = ['lib']
   s.add_runtime_dependency('aws-sdk', '~> 2')

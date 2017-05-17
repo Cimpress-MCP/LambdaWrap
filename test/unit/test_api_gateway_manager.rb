@@ -10,25 +10,31 @@ class TestApiGateway < Minitest::Test
       enable_output
     end
 
+    class FileOpenDouble
+      def read
+        'BLOB DATA'
+      end
+    end
+
     let(:environment_valid) do
       LambdaWrap::Environment.new('UnitTestingValid', { variable: 'valueValid' },
                                   'My UnitTesting EnvironmentValid')
     end
 
     let(:apig_valid) do
-      LambdaWrap::ApiGateway.new(swagger_file_path: './test/data/swagger_valid_1.yaml')
+      LambdaWrap::ApiGateway.new(path_to_swagger_file: './test/data/swagger_valid_1.yaml')
     end
 
     describe ' when constructing the API Gateway ' do
       it ' should create successfully with all valid values given.' do
-        apig_under_test = LambdaWrap::ApiGateway.new(swagger_file_path: './test/data/swagger_valid_1.yaml',
+        apig_under_test = LambdaWrap::ApiGateway.new(path_to_swagger_file: './test/data/swagger_valid_1.yaml',
                                                      import_mode: 'merge')
         apig_under_test.must_be_instance_of(LambdaWrap::ApiGateway)
       end
       it ' should throw an error if the swagger file doesnt exist.' do
         proc {
           LambdaWrap::ApiGateway.new(
-            swagger_file_path: '.non/existent/file.yaml', import_mode: 'merge'
+            path_to_swagger_file: '.non/existent/file.yaml', import_mode: 'merge'
           )
         }.must_raise(ArgumentError).to_s
           .must_match(/File does not exist/)

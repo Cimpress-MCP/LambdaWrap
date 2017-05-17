@@ -162,6 +162,11 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
       true
     end
 
+    def to_s
+      return @lambda_name if @lambda_name && @lambda_name.is_a?(String)
+      super
+    end
+
     private
 
     def retrieve_lambda_details
@@ -206,8 +211,11 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     def update_lambda_code
       puts "Updating Lambda Code for #{@lambda_name}...."
 
-      response = @client.update_function_code(function_name: @lambda_name, zip_file: @path_to_zip_file,
-                                              publish: true)
+      response = @client.update_function_code(
+        function_name: @lambda_name,
+        zip_file: File.open(@path_to_zip_file, 'rb').read,
+        publish: true
+      )
 
       puts "Successully updated Lambda #{@lambda_name} code to version: #{response.version}"
       response.version
@@ -215,12 +223,12 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
 
     def create_alias(func_version, alias_name, alias_description)
       if alias_exist?(alias_name)
-        @client.create_alias(
+        @client.update_alias(
           function_name: @lambda_name, name: alias_name, function_version: func_version,
           description: alias_description || 'Alias managed by LambdaWrap'
         )
       else
-        @client.update_alias(
+        @client.create_alias(
           function_name: @lambda_name, name: alias_name, function_version: func_version,
           description: alias_description || 'Alias managed by LambdaWrap'
         )
@@ -259,7 +267,9 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
             @client.list_versions_by_function(function_name: @lambda_name, marker: response.next_marker)
           end
         function_versions.concat(response.versions.map(&:version))
-        return function_versions if response.next_marker.nil? || response.next_marker.empty?
+        if response.next_marker.nil? || response.next_marker.empty?
+          return function_versions.reject { |v| v == '$LATEST' }
+        end
       end
     end
 

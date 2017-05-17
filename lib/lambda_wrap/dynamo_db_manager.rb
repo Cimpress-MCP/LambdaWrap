@@ -203,6 +203,11 @@ module LambdaWrap
       table_names.length
     end
 
+    def to_s
+      return @table_name if @table_name && @table_name.is_a?(String)
+      super
+    end
+
     private
 
     def retrieve_table_details(full_table_name)

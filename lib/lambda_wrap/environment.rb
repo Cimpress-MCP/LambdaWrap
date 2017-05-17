@@ -44,5 +44,10 @@ module LambdaWrap
       raise ArgumentError, 'Description too long (Max 256)' unless description.length < 256
       @description = description
     end
+
+    def to_s
+      return @name if @name && @name.is_a?(String)
+      super
+    end
   end
 end

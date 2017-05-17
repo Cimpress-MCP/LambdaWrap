@@ -13,12 +13,13 @@ module LambdaWrap
     # API should be configured through your Swagger File (e.g. Integrations, API Name, Version).
     #
     # @param [Hash] options The Options initialize the API Gateway Manager with.
-    # @option options [String] :swagger_file_path File path the Swagger File to load and parse.
+    # @option options [String] :path_to_swagger_file File path the Swagger File to load and parse.
     # @option options [String] :import_mode (overwrite) How the API Gateway Object will handle updates.
     #  Accepts <tt>overwrite</tt> and <tt>merge</tt>.
     def initialize(options)
       options_with_defaults = options.reverse_merge(import_mode: 'overwrite')
-      @specification = extract_specification(options_with_defaults[:swagger_file_path])
+      @path_to_swagger_file = options_with_defaults[:path_to_swagger_file]
+      @specification = extract_specification(@path_to_swagger_file)
       @api_name = @specification['info']['title']
       @api_version = @specification['info']['version']
       @import_mode = options_with_defaults[:import_mode]
@@ -40,10 +41,13 @@ module LambdaWrap
         if api_id
           @client.put_rest_api(
             fail_on_warnings: false, mode: @import_mode, rest_api_id:
-            api_id, body: @specification.to_s
+            api_id, body: File.open(@path_to_swagger_file, 'rb').read
           )
         else
-          @client.import_rest_api(fail_on_warnings: false, body: @specification.to_s)
+          @client.import_rest_api(
+            fail_on_warnings: false,
+            body: File.open(@path_to_swagger_file, 'rb').read
+          )
         end
 
       if service_response.nil? || service_response.id.nil?
@@ -94,6 +98,11 @@ module LambdaWrap
         puts "API Gateway Object #{@api_name} not found. Nothing to delete."
       end
       true
+    end
+
+    def to_s
+      return @api_name if @api_name && @api_name.is_a?(String)
+      super
     end
 
     private
