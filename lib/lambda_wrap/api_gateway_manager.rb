@@ -1,203 +1,153 @@
-require 'aws-sdk'
-
 module LambdaWrap
-  # The ApiGatewayManager simplifies downloading the aws-apigateway-importer binary,
-  # importing a {swagger configuration}[http://swagger.io], and managing API Gateway stages.
-  # Added functionality to create APIGateway deom Swagger file. Thsi API is useful for gateway's having
-  # custom authorization.
+  # The ApiGateway class simplifies creation, deployment, and management of API Gateway objects.
+  # The specification for the API MUST be detailed in a provided Open API Formatted file (fka Swagger).
+  #
+  # @!attribute [r] specification
+  #   @return [Hash] The Swagger spec parsed into a Hash
+  #
+  # @since 1.0
+  class ApiGateway < AwsService
+    attr_reader :specification
 
-  # Note: The concept of an environment of the LambdaWrap gem matches a stage in AWS ApiGateway terms.
-  class ApiGatewayManager
+    # Initializes the APIGateway Manager Object. A significant majority of the configuration of your
+    # API should be configured through your Swagger File (e.g. Integrations, API Name, Version).
     #
-    # The constructor does some basic setup
-    # * Validating basic AWS configuration
-    # * Creating the underlying client to interact with the AWS SDK.
-    # * Defining the temporary path of the api-gateway-importer jar file
-    def initialize
-      # AWS api gateway client
-      @client = Aws::APIGateway::Client.new
-      # path to apigateway-importer jar
-      @jarpath = File.join(Dir.tmpdir, 'aws-apigateway-importer-1.0.3-SNAPSHOT-jar-with-dependencies.jar')
-      @versionpath = File.join(Dir.tmpdir, 'aws-apigateway-importer-1.0.3-SNAPSHOT-jar-with-dependencies.s3version')
+    # @param [Hash] options The Options initialize the API Gateway Manager with.
+    # @option options [String] :path_to_swagger_file File path the Swagger File to load and parse.
+    # @option options [String] :import_mode (overwrite) How the API Gateway Object will handle updates.
+    #  Accepts <tt>overwrite</tt> and <tt>merge</tt>.
+    def initialize(options)
+      options_with_defaults = options.reverse_merge(import_mode: 'overwrite')
+      @path_to_swagger_file = options_with_defaults[:path_to_swagger_file]
+      @specification = extract_specification(@path_to_swagger_file)
+      @api_name = @specification['info']['title']
+      @api_version = @specification['info']['version']
+      @import_mode = options_with_defaults[:import_mode]
     end
 
-    ##
-    # Downloads the aws-apigateway-importer jar from an S3 bucket.
-    # This is a workaround since aws-apigateway-importer does not provide a binary.
-    # Once a binary is available on the public internet, we'll start using this instead
-    # of requiring users of this gem to upload their custom binary to an S3 bucket.
+    # Deploys the API Gateway Object to a specified environment
     #
-    # *Arguments*
-    # [s3_bucket]  An S3 bucket from where the aws-apigateway-importer binary can be downloaded.
-    # [s3_key]  The path (key) to the aws-apigateay-importer binary on the s3 bucket.
-    def download_apigateway_importer(s3_bucket, s3_key)
-      s3 = Aws::S3::Client.new
+    # @param environment_options [LambdaWrap::Environment] The environment to deploy
+    # @param client [Aws::APIGateway::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def deploy(environment_options, client, region = 'AWS_REGION')
+      super
+      puts "Deploying API: #{@api_name} to Environment: #{environment_options.name}"
+      @stage_variables = environment_options.variables || {}
+      @stage_variables.store('environment', environment_options.name)
 
-      # current version
-      current_s3_version = File.open(@versionpath, 'rb').read if File.exist?(@versionpath)
+      api_id = get_id_for_api(@api_name)
+      service_response =
+        if api_id
+          @client.put_rest_api(
+            fail_on_warnings: false, mode: @import_mode, rest_api_id:
+            api_id, body: File.open(@path_to_swagger_file, 'rb').read
+          )
+        else
+          @client.import_rest_api(
+            fail_on_warnings: false,
+            body: File.open(@path_to_swagger_file, 'rb').read
+          )
+        end
 
-      # online s3 version
-      desired_s3_version = s3.head_object(bucket: s3_bucket, key: s3_key).version_id
-
-      # compare local with remote version
-      if current_s3_version != desired_s3_version || !File.exist?(@jarpath)
-        puts "Downloading aws-apigateway-importer jar with S3 version #{desired_s3_version}"
-        s3.get_object(response_target: @jarpath, bucket: s3_bucket, key: s3_key)
-        File.write(@versionpath, desired_s3_version)
+      if service_response.nil? || service_response.id.nil?
+        raise "Failed to create API gateway with name #{@api_name}"
       end
-    end
 
-    ##
-    # Sets up the API gateway by searching whether the API Gateway already exists
-    # and updates it with the latest information from the swagger file.
-    #
-    # *Arguments*
-    # [api_name]  The name of the API to which the swagger file should be applied to.
-    # [env]  The environment where it should be published (which is matching an API gateway stage)
-    # [swagger_file]  A handle to a swagger file that should be used by aws-apigateway-importer
-    # [api_description]  The description of the API to be displayed.
-    # [stage_variables]  A Hash of stage variables to be deployed with the stage. Adds an 'environment' by default.
-    # [region]  A string representing the region to deploy the API. Defaults to what is set as an environment variable.
-    def setup_apigateway(api_name, env, swagger_file, api_description = 'Deployed with LambdaWrap',
-                         stage_variables = {}, region = ENV['AWS_REGION'])
-      # ensure API is created
-      api_id = get_existing_rest_api(api_name)
-      api_id = setup_apigateway_create_rest_api(api_name, api_description) unless api_id
-
-      # create resources
-      setup_apigateway_create_resources(api_id, swagger_file, region)
-
-      # create stages
-      stage_variables.store('environment', env)
-      create_stages(api_id, env, stage_variables)
-
-      # return URI of created stage
-      "https://#{api_id}.execute-api.#{region}.amazonaws.com/#{env}/"
-    end
-
-    ##
-    # Shuts down an environment from the API Gateway. This basically deletes the stage
-    # from the API Gateway, but does not delete the API Gateway itself.
-    #
-    # *Argument*
-    # [api_name]  The name of the API where the environment should be shut down.
-    # [env]  The environment (matching an API Gateway stage) to shutdown.
-    def shutdown_apigateway(api_name, env)
-      api_id = get_existing_rest_api(api_name)
-      delete_stage(api_id, env)
-    end
-
-    ##
-    # Gets the ID of an existing API Gateway api, or nil if it doesn't exist
-    #
-    # *Arguments*
-    # [api_name]  The name of the API to be checked for existance
-    def get_existing_rest_api(api_name)
-      apis = @client.get_rest_apis(limit: 500).data
-      api = apis.items.select { |a| a.name == api_name }.first
-
-      return api.id if api
-      # nil is returned otherwise
-    end
-
-    ##
-    # Creates the API with a given name using the SDK and returns the id
-    #
-    # *Arguments*
-    # [api_name]  A String representing the name of the API Gateway Object to be created
-    # [api_description]  A String representing the description of the API
-    def setup_apigateway_create_rest_api(api_name, api_description)
-      puts 'Creating API with name ' + api_name
-      api = @client.create_rest_api(name: api_name, description: api_description)
-      api.id
-    end
-
-    ##
-    # Invokes the aws-apigateway-importer jar with the required parameter
-    #
-    # *Arguments*
-    # [api_id]  The AWS ApiGateway id where the swagger file should be applied to.
-    # [swagger_file]  The handle to a swagger definition file that should be imported into API Gateway
-    # [region]  A string representing the target region to deploy the API
-    def setup_apigateway_create_resources(api_id, swagger_file, region)
-      raise 'API ID not provided' unless api_id
-
-      cmd = "java -jar #{@jarpath} --update #{api_id} --region #{region} #{swagger_file}"
-      raise 'API gateway not created' unless system(cmd)
-    end
-
-    ##
-    # Creates a stage of the currently set resources
-    #
-    # *Arguments*
-    # [api_id]  The AWS ApiGateway id where the stage should be created at.
-    # [env]  The environment (which matches the stage in API Gateway) to create.
-    # [stage_variables]  A Hash of stage variables to deploy with the stage
-    def create_stages(api_id, env, stage_variables)
-      deployment_description = 'Deployment of service to ' + env
-      deployment = @client.create_deployment(
-        rest_api_id: api_id, stage_name: env, cache_cluster_enabled: false, description: deployment_description,
-        variables: stage_variables
-      ).data
-      puts deployment
-    end
-
-    ##
-    # Deletes a stage of the API Gateway
-    #
-    # *Arguments*
-    # [api_id]  The AWS ApiGateway id from which the stage should be deleted from.
-    # [env]The environment (which matches the stage in API Gateway) to delete.
-    def delete_stage(api_id, env)
-      @client.delete_stage(rest_api_id: api_id, stage_name: env)
-      puts 'Deleted API gateway stage ' + env
-    rescue Aws::APIGateway::Errors::NotFoundException
-      puts 'API Gateway stage ' + env + ' does not exist. Nothing to delete.'
-    end
-
-    ##
-    # Generate or Update the API Gateway by using the swagger file and the SDK importer
-    #
-    # *Arguments*
-    # [api_name] API Gateway name
-    # [local_swagger_file] Path of the local swagger file
-    # [env] Environment identifier
-    # [stage_variables] hash of stage variables
-    def setup_apigateway_by_swagger_file(api_name, local_swagger_file, env, stage_variables = {})
-      # If API gateway with the name is already present then update it else create a new one
-      api_id = get_existing_rest_api(api_name)
-      swagger_file_content = File.read(local_swagger_file)
-
-      gateway_response = nil
-      if api_id.nil?
-        # Create a new APIGateway
-        gateway_response =  @client.import_rest_api(fail_on_warnings: false, body: swagger_file_content)
+      if api_id
+        "Created API Gateway Object: #{@api_name} having id #{service_response.id}"
       else
-        # Update the exsiting APIgateway. By Merge the exsisting gateway will be merged with the new
-        # one supplied in the Swagger file.
-        gateway_response =  @client.put_rest_api(rest_api_id: api_id, mode: 'merge', fail_on_warnings: false,
-                                                 body: swagger_file_content)
+        "Updated API Gateway Object: #{@api_name} having id #{service_response.id}"
       end
 
-      raise "Failed to create API gateway with name #{api_name}" if gateway_response.nil? && gateway_response.id.nil?
+      create_stage(service_response.id, environment_options)
 
-      if api_id.nil?
-        puts "Created api gateway #{api_name} having id #{gateway_response.id}"
-      else
-        puts "Updated api gateway #{api_name} having id #{gateway_response.id}"
-      end
+      service_uri = "https://#{service_response.id}.execute-api.#{@region}.amazonaws.com/#{environment_options.name}/"
 
-      # Deploy the service
-      stage_variables.store('environment', env)
-      create_stages(gateway_response.id, env, stage_variables)
-
-      service_uri = "https://#{gateway_response.id}.execute-api.#{ENV['AWS_REGION']}.amazonaws.com/#{env}/"
-      puts "Service deployed at #{service_uri}"
+      puts "API: #{@api_name} deployed at #{service_uri}"
 
       service_uri
     end
 
-    private :get_existing_rest_api, :setup_apigateway_create_rest_api, :setup_apigateway_create_resources,
-            :create_stages, :delete_stage
+    # Tearsdown environment for API Gateway. Deletes stage.
+    #
+    # @param environment_options [LambdaWrap::Environment] The environment to teardown.
+    # @param client [Aws::APIGateway::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def teardown(environment_options, client, region = 'AWS_REGION')
+      super
+      api_id = get_id_for_api(@api_name)
+      if api_id
+        delete_stage(api_id, environment_options.name)
+      else
+        puts "API Gateway Object #{@api_name} not found. No environment to tear down."
+      end
+      true
+    end
+
+    # Deletes all stages and API Gateway object.
+    # @param client [Aws::APIGateway::Client] Client to use with SDK. Should be passed in by the API class.
+    # @param region [String] AWS Region string. Should be passed in by the API class.
+    def delete(client, region = 'AWS_REGION')
+      super
+      api_id = get_id_for_api(@api_name)
+      if api_id
+        @client.delete_rest_api(rest_api_id: api_id)
+        puts "Deleted API: #{@api_name} ID:#{api_id}"
+      else
+        puts "API Gateway Object #{@api_name} not found. Nothing to delete."
+      end
+      true
+    end
+
+    def to_s
+      return @api_name if @api_name && @api_name.is_a?(String)
+      super
+    end
+
+    private
+
+    def delete_stage(api_id, env)
+      @client.delete_stage(rest_api_id: api_id, stage_name: env)
+      puts 'Deleted API gateway stage ' + env
+    rescue Aws::APIGateway::Errors::NotFoundException
+      puts "API Gateway stage #{env} does not exist. Nothing to delete."
+    end
+
+    def create_stage(api_id, environment_options)
+      deployment_description = "Deploying API #{@api_name} v#{@api_version}\
+        to Environment:#{environment_options.name}"
+      stage_description = "#{environment_options.name} - #{environment_options.description}"
+      @client.create_deployment(
+        rest_api_id: api_id, stage_name: environment_options.name,
+        stage_description: stage_description, description: deployment_description,
+        cache_cluster_enabled: false, variables: environment_options.variables
+      )
+    end
+
+    def extract_specification(file_path)
+      unless File.exist?(file_path)
+        raise ArgumentError, "Open API Spec (Swagger) File does not exist: #{file_path}!"
+      end
+      spec = Psych.load_file(file_path)
+      raise ArgumentError, 'LambdaWrap only supports swagger v2.0' unless spec['swagger'] == '2.0'
+      raise ArgumentError, 'Invalid Title field in the OAPISpec' unless spec['info']['title'] =~ /[A-Za-z0-9]{1,1024}/
+      spec
+    end
+
+    def get_id_for_api(api_name)
+      response = nil
+      loop do
+        response =
+          if !response || response.position.nil?
+            @client.get_rest_apis(limit: 500)
+          else
+            @client.get_rest_apis(limit: 500, position: response.position)
+          end
+        api = response.items.detect { |item| item.name == api_name }
+        return api.id if api
+        return if response.items.empty? || response.position.nil? || response.position.empty?
+      end
+    end
   end
 end

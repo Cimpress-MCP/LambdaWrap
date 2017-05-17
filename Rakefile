@@ -1,8 +1,14 @@
 require 'rake'
 require 'rake/clean'
-require 'lambda_wrap/version'
+require 'rake/testtask'
+require 'yard'
+require './lib/lambda_wrap/version'
+
+ROOT = File.dirname(__FILE__)
 
 CLEAN.include('*.gem')
+CLEAN.include(File.join(ROOT, 'reports'))
+CLEAN.include(File.join(ROOT, 'doc'))
 
 desc 'Builds the gem.'
 task build: [:clean, :lint, :unit_test, :integration_test, :create]
@@ -10,22 +16,32 @@ task build: [:clean, :lint, :unit_test, :integration_test, :create]
 desc 'Runs Rubocop'
 task :lint do
   if RUBY_VERSION >= '2.0.0'
-    cmd = 'rubocop -a'
+    cmd = 'rubocop -a -F'
     system(cmd)
   end
 end
 
-desc 'Unit tests the gem.'
-task :unit_test do
-  puts 'Running Unit tests...'
-  # TODO: Write Unit Tests.
+Rake::TestTask.new do |t|
+  t.test_files = FileList['test/unit/test*.rb']
+  t.warning = false
+  t.verbose = true
+  t.name = :unit_test
+  t.options = '--pride'
 end
 
-desc 'Runs Integration Tests.'
-task :integration_test do
-  puts 'Running Integration tests...'
-  # TODO: Write Integration Tests.
+Rake::TestTask.new do |t|
+  t.test_files = FileList['test/integration/test*.rb']
+  t.warning = false
+  t.verbose = true
+  t.name = :integration_test
+  t.options = '--pride'
 end
+
+YARD::Rake::YardocTask.new do |t|
+  t.files = ['lib/**/*.rb']
+end
+
+task :yard => [:clean]
 
 desc 'Creates the ruby gem'
 task create: [:clean] do
