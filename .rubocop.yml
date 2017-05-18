@@ -28,7 +28,7 @@ CyclomaticComplexity:
 AllCops:
   TargetRubyVersion: 1.9
   Include:
-    - 'lib/**'
+    - 'lib/**/*.rb'
   Exclude:
     - 'Rakefile'
     - 'Gemfile'

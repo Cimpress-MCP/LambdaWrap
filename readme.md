@@ -2,6 +2,7 @@
 
 [![BuildStatus](https://travis-ci.org/Cimpress-MCP/LambdaWrap.svg?branch=master)](https://travis-ci.org/Cimpress-MCP/LambdaWrap) [![GemVersion](https://badge.fury.io/rb/lambda_wrap.svg)](https://badge.fury.io/rb/lambda_wrap)
 [![Code Climate](https://codeclimate.com/github/Cimpress-MCP/LambdaWrap/badges/gpa.svg)](https://codeclimate.com/github/Cimpress-MCP/LambdaWrap)
+[![Test Coverage](https://codeclimate.com/github/Cimpress-MCP/LambdaWrap/badges/coverage.svg)](https://codeclimate.com/github/Cimpress-MCP/LambdaWrap/coverage)
 
 A ruby library to simplify deployment of a Serverless RESTful API, coordinating the AWS Services: AWS Lambda, API Gateway and DynamoDB, agnostic of the Runtime engine and Package structure.
 
