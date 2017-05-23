@@ -6,7 +6,10 @@ end
 
 require 'minitest/autorun'
 require 'minitest/reporters'
-Minitest::Reporters.use!
+Minitest::Reporters.use! [
+  #Minitest::Reporters::RubyMateReporter.new
+  Minitest::Reporters::HtmlReporter.new(reports_dir: 'reports')
+]
 
 require 'aws-sdk'
 require 'lambda_wrap'
