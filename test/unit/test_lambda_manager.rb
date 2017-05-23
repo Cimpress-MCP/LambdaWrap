@@ -174,15 +174,17 @@ class TestLambda < Minitest::Test
       it ' should create a new function and new alias successfully.' do
         # Stubs exist?
         File.stub :exist?, true do
-          lambda_client = Aws::Lambda::Client.new(
-            stub_responses: {
-              get_function: 'ResourceNotFoundException',
-              create_function: { version: '1' },
-              list_aliases: { aliases: [{ name: 'WrongName' }] },
-              create_alias: { name: 'UnitTestingEnvironmentValid' }
-            }
-          )
-          lambda_valid.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
+          File.stub(:open, FileOpenDouble.new) do
+            lambda_client = Aws::Lambda::Client.new(
+              stub_responses: {
+                get_function: 'ResourceNotFoundException',
+                create_function: { version: '1' },
+                list_aliases: { aliases: [{ name: 'WrongName' }] },
+                create_alias: { name: 'UnitTestingEnvironmentValid' }
+              }
+            )
+            lambda_valid.deploy(environment_valid, lambda_client, 'eu-west-1').must_equal(true)
+          end
         end
       end
 
