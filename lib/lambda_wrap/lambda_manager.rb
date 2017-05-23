@@ -185,8 +185,8 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
 
       lambda_version = @client.create_function(
         function_name: @lambda_name, runtime: @runtime, role: @role_arn, handler: @handler,
-        code: { zip_file: @path_to_zip_file }, description: @description, timeout: @timeout, memory_size: @memory_size,
-        vpc_config: @vpc_configuration, publish: true
+        code: { zip_file: File.open(@path_to_zip_file, 'rb').read }, description: @description, timeout: @timeout,
+        memory_size: @memory_size, vpc_config: @vpc_configuration, publish: true
       ).version
       puts "Successfully created Lambda: #{@lambda_name}!"
       lambda_version
