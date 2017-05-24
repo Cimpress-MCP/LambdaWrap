@@ -27,7 +27,7 @@ Rake::TestTask.new(:unit_test) do |t|
   t.test_files = FileList['test/unit/test*.rb']
   t.warning = false
   t.verbose = true
-  t.options = '--pride --seed=4992'
+  t.options = '--pride'
 end
 
 Rake::TestTask.new(:integration_test) do |t|

@@ -10,16 +10,6 @@ class TestApiGateway < Minitest::Test
       enable_output
     end
 
-    class FileOpenDouble
-      def initialize
-        super
-      end
-
-      def read
-        'BLOB DATA'
-      end
-    end
-
     let(:environment_valid) do
       LambdaWrap::Environment.new('UnitTestingValid', { variable: 'valueValid' },
                                   'My UnitTesting EnvironmentValid')
