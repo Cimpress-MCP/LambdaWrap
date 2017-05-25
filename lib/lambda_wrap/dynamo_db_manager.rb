@@ -213,7 +213,10 @@ module LambdaWrap
     def retrieve_table_details(full_table_name)
       table_details = nil
       begin
-        table_details = @client.describe_table(table_name: full_table_name).table
+        options = {
+          table_name: full_table_name
+        }
+        table_details = @client.describe_table(options).table
       rescue Aws::DynamoDB::Errors::ResourceNotFoundException
         puts "Table #{full_table_name} does not exist."
       end
@@ -309,11 +312,12 @@ module LambdaWrap
       puts "Updating Provisioned Throughtput for #{full_table_name}"
       puts "Setting Read Capacity Units From: #{old_read} To: #{@read_capacity_units}"
       puts "Setting Write Capacty Units From: #{old_write} To: #{@write_capacity_units}"
-      @client.update_table(
+      options = {
         table_name: full_table_name,
         provisioned_throughput: { read_capacity_units: @read_capacity_units,
                                   write_capacity_units: @write_capacity_units }
-      )
+      }
+      @client.update_table(options)
     end
 
     def build_global_index_deletes_array(current_global_indexes)
@@ -325,10 +329,11 @@ module LambdaWrap
 
     def delete_global_index(full_table_name, index_to_delete)
       puts "Deleting Global Secondary Index: #{index_to_delete} from Table: #{full_table_name}"
-      @client.update_table(
+      options = {
         table_name: full_table_name,
         global_secondary_index_updates: [{ delete: { index_name: index_to_delete } }]
-      )
+      }
+      @client.update_table(options)
     end
 
     # Looks through the list current of Global Secondary Indexes and builds an array if the Provisioned Throughput
@@ -363,10 +368,12 @@ module LambdaWrap
         end
       )
 
-      @client.update_table(
+      options = {
         table_name: full_table_name,
         global_secondary_index_updates: global_secondary_index_updates.map { |index| { update: index } }
-      )
+      }
+
+      @client.update_table(options)
     end
 
     def build_new_global_indexes_array(current_global_indexes)
@@ -383,22 +390,24 @@ module LambdaWrap
     def create_global_indexes(full_table_name, new_global_secondary_indexes)
       puts "Creating new Global Indexes for Table: #{full_table_name}"
       puts(new_global_secondary_indexes.map { |index| index[:index_name].to_s })
-      @client.update_table(
+      options = {
         table_name: full_table_name,
         global_secondary_index_updates: new_global_secondary_indexes.map { |index| { create: index } }
-      )
+      }
+      @client.update_table(options)
     end
 
     def create_table(full_table_name)
       puts "Creating table #{full_table_name}..."
-      @client.create_table(
+      options = {
         table_name: full_table_name, attribute_definitions: @attribute_definitions,
         key_schema: @key_schema,
         provisioned_throughput: { read_capacity_units: @read_capacity_units,
                                   write_capacity_units: @write_capacity_units },
         local_secondary_indexes: @local_secondary_indexes,
         global_secondary_indexes: @global_secondary_indexes
-      )
+      }
+      @client.create_table(options)
       # Wait 60 seconds because "DescribeTable uses an eventually consistent query"
       puts 'Sleeping for 60 seconds...'
       Kernel.sleep(60)
@@ -415,7 +424,10 @@ module LambdaWrap
       else
         # Wait up to 30m
         wait_until_table_available(full_table_name, 5, 360) if table_details.table_status != 'ACTIVE'
-        @client.delete_table(table_name: full_table_name)
+        options = {
+          table_name: full_table_name
+        }
+        @client.delete_table(options)
       end
     end
 
@@ -427,12 +439,13 @@ module LambdaWrap
       tables = []
       response = nil
       loop do
-        response =
-          if !response || response.last_evaluated_table_name.nil? || response.last_evaluated_table_name.empty?
-            @client.list_tables(limit: 100)
-          else
-            @client.list_tables(limit: 100, exclusive_start_table_name: response.last_evaluated_table_name)
-          end
+        options = {
+          limit: 100
+        }
+        unless !response || response.last_evaluated_table_name.nil? || response.last_evaluated_table_name.empty?
+          options[:exclusive_start_table_name] = response.last_evaluated_table_name
+        end
+        response = @client.list_tables(options)
         tables.concat(response.table_names)
         if response.table_names.empty? || response.last_evaluated_table_name.nil? ||
            response.last_evaluated_table_name.empty?

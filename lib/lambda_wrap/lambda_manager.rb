@@ -156,7 +156,8 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
       if lambda_details.nil?
         puts 'No Lambda to delete.'
       else
-        @client.delete_function(function_name: @lambda_name)
+        options = { function_name: @lambda_name }
+        @client.delete_function(options)
         puts "Lambda #{@lambda_name} and all Versions & Aliases have been deleted."
       end
       true
@@ -172,7 +173,8 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     def retrieve_lambda_details
       lambda_details = nil
       begin
-        lambda_details = @client.get_function(function_name: @lambda_name).configuration
+        options = { function_name: @lambda_name }
+        lambda_details = @client.get_function(options).configuration
       rescue Aws::Lambda::Errors::ResourceNotFoundException, Aws::Lambda::Errors::NotFound
         puts "Lambda #{@lambda_name} does not exist."
       end
@@ -182,12 +184,12 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     def create_lambda
       puts "Creating New Lambda Function: #{@lambda_name}...."
       puts "Runtime Engine: #{@runtime}, Timeout: #{@timeout}, Memory Size: #{@memory_size}."
-
-      lambda_version = @client.create_function(
+      options = {
         function_name: @lambda_name, runtime: @runtime, role: @role_arn, handler: @handler,
-        code: { zip_file: File.open(@path_to_zip_file, 'rb').read }, description: @description, timeout: @timeout,
+        code: { zip_file: File.binread(@path_to_zip_file) }, description: @description, timeout: @timeout,
         memory_size: @memory_size, vpc_config: @vpc_configuration, publish: true
-      ).version
+      }
+      lambda_version = @client.create_function(options).version
       puts "Successfully created Lambda: #{@lambda_name}!"
       lambda_version
     end
@@ -200,45 +202,47 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
 #{@vpc_configuration[:security_group_ids]}"
       end
 
-      @client.update_function_configuration(
+      options = {
         function_name: @lambda_name, role: @role_arn, handler: @handler, description: @description, timeout: @timeout,
         memory_size: @memory_size, vpc_config: @vpc_configuration, runtime: @runtime
-      )
+      }
+
+      @client.update_function_configuration(options)
 
       puts "Successfully updated Lambda configuration for #{@lambda_name}"
     end
 
     def update_lambda_code
       puts "Updating Lambda Code for #{@lambda_name}...."
-
-      response = @client.update_function_code(
+      options = {
         function_name: @lambda_name,
-        zip_file: File.open(@path_to_zip_file, 'rb').read,
+        zip_file: File.binread(@path_to_zip_file),
         publish: true
-      )
+      }
+
+      response = @client.update_function_code(options)
 
       puts "Successully updated Lambda #{@lambda_name} code to version: #{response.version}"
       response.version
     end
 
     def create_alias(func_version, alias_name, alias_description)
+      options = {
+        function_name: @lambda_name, name: alias_name, function_version: func_version,
+        description: alias_description || 'Alias managed by LambdaWrap'
+      }
       if alias_exist?(alias_name)
-        @client.update_alias(
-          function_name: @lambda_name, name: alias_name, function_version: func_version,
-          description: alias_description || 'Alias managed by LambdaWrap'
-        )
+        @client.update_alias(options)
       else
-        @client.create_alias(
-          function_name: @lambda_name, name: alias_name, function_version: func_version,
-          description: alias_description || 'Alias managed by LambdaWrap'
-        )
+        @client.create_alias(options)
       end
       puts "Created Alias: #{alias_name} for Lambda: #{@lambda_name} v#{func_version}."
     end
 
     def remove_alias(alias_name)
       puts "Deleting Alias: #{alias_name} for #{@lambda_name}"
-      @client.delete_alias(function_name: @lambda_name, name: alias_name)
+      options = { function_name: @lambda_name, name: alias_name }
+      @client.delete_alias(options)
     end
 
     def cleanup_unused_versions
@@ -250,7 +254,8 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
 
       function_versions_to_be_deleted.each do |version|
         puts "Deleting function version: #{version}."
-        @client.delete_function(function_name: @lambda_name, qualifier: version)
+        options = { function_name: @lambda_name, qualifier: version }
+        @client.delete_function(options)
       end
 
       puts "Cleaned up #{function_versions_to_be_deleted.length} unused versions."
@@ -260,12 +265,13 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
       function_versions = []
       response = nil
       loop do
-        response =
-          if !response || response.next_marker.nil? || response.next_marker.empty?
-            @client.list_versions_by_function(function_name: @lambda_name)
-          else
-            @client.list_versions_by_function(function_name: @lambda_name, marker: response.next_marker)
-          end
+        options = {
+          function_name: @lambda_name
+        }
+        unless !response || response.next_marker.nil? || response.next_marker.empty?
+          options[:marker] = response.next_marker
+        end
+        response = @client.list_versions_by_function(options)
         function_versions.concat(response.versions.map(&:version))
         if response.next_marker.nil? || response.next_marker.empty?
           return function_versions.reject { |v| v == '$LATEST' }
@@ -277,7 +283,13 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
       aliases = []
       response = nil
       loop do
-        response = invoke_client_method_with_optional_marker(response, :list_aliases)
+        options = {
+          function_name: @lambda_name
+        }
+        unless !response || response.next_marker.nil? || response.next_marker.empty?
+          options[:marker] = response.next_marker
+        end
+        response = @client.list_aliases(options)
         aliases.concat(response.aliases)
         return aliases if response.aliases.empty? || response.next_marker.nil? || response.next_marker.empty?
       end
@@ -290,14 +302,6 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
 
     def alias_exist?(alias_name)
       retrieve_all_aliases.detect { |a| a.name == alias_name }
-    end
-
-    def invoke_client_method_with_optional_marker(response, method_symbol)
-      if !response || response.next_marker.nil? || response.next_marker.empty?
-        @client.send(method_symbol, function_name: @lambda_name)
-      else
-        @client.send(method_symbol, function_name: @lambda_name, marker: response.next_marker)
-      end
     end
   end
 end

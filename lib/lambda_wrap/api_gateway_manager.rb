@@ -39,15 +39,17 @@ module LambdaWrap
       api_id = get_id_for_api(@api_name)
       service_response =
         if api_id
-          @client.put_rest_api(
+          options = {
             fail_on_warnings: false, mode: @import_mode, rest_api_id:
-            api_id, body: File.open(@path_to_swagger_file, 'rb').read
-          )
+            api_id, body: File.binread(@path_to_swagger_file)
+          }
+          @client.put_rest_api(options)
         else
-          @client.import_rest_api(
+          options = {
             fail_on_warnings: false,
-            body: File.open(@path_to_swagger_file, 'rb').read
-          )
+            body: File.binread(@path_to_swagger_file)
+          }
+          @client.import_rest_api(options)
         end
 
       if service_response.nil? || service_response.id.nil?
@@ -92,7 +94,10 @@ module LambdaWrap
       super
       api_id = get_id_for_api(@api_name)
       if api_id
-        @client.delete_rest_api(rest_api_id: api_id)
+        options = {
+          rest_api_id: api_id
+        }
+        @client.delete_rest_api(options)
         puts "Deleted API: #{@api_name} ID:#{api_id}"
       else
         puts "API Gateway Object #{@api_name} not found. Nothing to delete."
@@ -108,7 +113,10 @@ module LambdaWrap
     private
 
     def delete_stage(api_id, env)
-      @client.delete_stage(rest_api_id: api_id, stage_name: env)
+      options = {
+        rest_api_id: api_id, stage_name: env
+      }
+      @client.delete_stage(options)
       puts 'Deleted API gateway stage ' + env
     rescue Aws::APIGateway::Errors::NotFoundException
       puts "API Gateway stage #{env} does not exist. Nothing to delete."
@@ -118,11 +126,12 @@ module LambdaWrap
       deployment_description = "Deploying API #{@api_name} v#{@api_version}\
         to Environment:#{environment_options.name}"
       stage_description = "#{environment_options.name} - #{environment_options.description}"
-      @client.create_deployment(
+      options = {
         rest_api_id: api_id, stage_name: environment_options.name,
         stage_description: stage_description, description: deployment_description,
         cache_cluster_enabled: false, variables: environment_options.variables
-      )
+      }
+      @client.create_deployment(options)
     end
 
     def extract_specification(file_path)
@@ -138,12 +147,11 @@ module LambdaWrap
     def get_id_for_api(api_name)
       response = nil
       loop do
-        response =
-          if !response || response.position.nil?
-            @client.get_rest_apis(limit: 500)
-          else
-            @client.get_rest_apis(limit: 500, position: response.position)
-          end
+        options = {
+          limit: 500
+        }
+        options[:position] = response.position unless !response || response.position.nil?
+        response = @client.get_rest_apis(options)
         api = response.items.detect { |item| item.name == api_name }
         return api.id if api
         return if response.items.empty? || response.position.nil? || response.position.empty?

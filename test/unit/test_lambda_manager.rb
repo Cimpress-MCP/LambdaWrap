@@ -2,7 +2,7 @@ require './test/helper.rb'
 
 class TestLambda < Minitest::Test
   describe LambdaWrap::Lambda do
-    let(:lambda_valid) do
+    def lambda_valid
       LambdaWrap::Lambda.new(
         lambda_name: 'LambdaValid', handler: 'handlerValid', role_arn: 'role_arnValid',
         path_to_zip_file: 'valid/path/to/file.zip', runtime: 'nodejs4.3', description: 'descriptionValid',
@@ -11,12 +11,12 @@ class TestLambda < Minitest::Test
       )
     end
 
-    let(:environment_valid) do
+    def environment_valid
       LambdaWrap::Environment.new('UnitTestingValid', { variable: 'valueValid' },
                                   'My UnitTesting EnvironmentValid')
     end
 
-    let(:environment_invalid) do
+    def environment_invalid
       LambdaWrap::Environment.new('UnitTestingInvalid', {}, 'My invalid Env')
     end
 
@@ -27,16 +27,6 @@ class TestLambda < Minitest::Test
 
     def teardown
       enable_output
-    end
-
-    class FileOpenDouble
-      def initialize
-        super
-      end
-
-      def read
-        'BLOB DATA'
-      end
     end
 
     describe ' When constructing the Lambda ' do
@@ -174,7 +164,7 @@ class TestLambda < Minitest::Test
       it ' should create a new function and new alias successfully.' do
         # Stubs exist?
         File.stub :exist?, true do
-          File.stub(:open, FileOpenDouble.new) do
+          File.stub :binread, 'BLOBDATA' do
             lambda_client = Aws::Lambda::Client.new(
               stub_responses: {
                 get_function: 'ResourceNotFoundException',
@@ -190,7 +180,7 @@ class TestLambda < Minitest::Test
 
       it ' should update function code, configuration and create a new alias successfully. ' do
         File.stub :exist?, true do
-          File.stub(:open, FileOpenDouble.new) do
+          File.stub :binread, 'BLOBDATA' do
             lambda_client = Aws::Lambda::Client.new(
               stub_responses: {
                 get_function: { configuration: { version: '3' } },
@@ -207,7 +197,7 @@ class TestLambda < Minitest::Test
 
       it ' should update function code, configuration, and alias successfully.' do
         File.stub :exist?, true do
-          File.stub(:open, FileOpenDouble.new) do
+          File.stub :binread, 'BLOBDATA' do
             lambda_client = Aws::Lambda::Client.new(
               stub_responses: {
                 get_function: { configuration: { version: '3' } },
@@ -224,7 +214,7 @@ class TestLambda < Minitest::Test
 
       it ' should update function code, configuration, and alias successfully, and remove unused versions.' do
         File.stub :exist?, true do
-          File.stub(:open, FileOpenDouble.new) do
+          File.stub :binread, 'BLOBDATA' do
             lambda_client = Aws::Lambda::Client.new(
               stub_responses: {
                 get_function: { configuration: { version: '3' } },
