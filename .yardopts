@@ -1,0 +1,4 @@
+'lib/**/*.rb'
+-
+readme.md
+LICENSE
