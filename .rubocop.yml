@@ -26,7 +26,7 @@ CyclomaticComplexity:
   Enabled: true
   Max: 20
 AllCops:
-  TargetRubyVersion: 1.9
+  TargetRubyVersion: 2.1
   Include:
     - 'lib/**/*.rb'
   Exclude:

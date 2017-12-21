@@ -52,9 +52,7 @@ module LambdaWrap
           @client.import_rest_api(options)
         end
 
-      if service_response.nil? || service_response.id.nil?
-        raise "Failed to create API gateway with name #{@api_name}"
-      end
+      raise "Failed to create API gateway with name #{@api_name}" if service_response.nil? || service_response.id.nil?
 
       if api_id
         "Created API Gateway Object: #{@api_name} having id #{service_response.id}"
@@ -135,9 +133,7 @@ module LambdaWrap
     end
 
     def extract_specification(file_path)
-      unless File.exist?(file_path)
-        raise ArgumentError, "Open API Spec (Swagger) File does not exist: #{file_path}!"
-      end
+      raise ArgumentError, "Open API Spec (Swagger) File does not exist: #{file_path}!" unless File.exist?(file_path)
       spec = Psych.load_file(file_path)
       raise ArgumentError, 'LambdaWrap only supports swagger v2.0' unless spec['swagger'] == '2.0'
       raise ArgumentError, 'Invalid Title field in the OAPISpec' unless spec['info']['title'] =~ /[A-Za-z0-9]{1,1024}/
