@@ -24,7 +24,7 @@ module LambdaWrap
     # @option options [Integer] :timeout (30) The function execution time at which Lambda should terminate the function.
     # @option options [Integer] :memory_size (128) The amount of memory, in MB, your Lambda function is given. Lambda
     #  uses this memory size to infer the amount of CPU and memory allocated to your function. The value must be a
-    #  multiple of 64MB. Minimum: 128, Maximum: 1536.
+    #  multiple of 64MB. Minimum: 128, Maximum: 3008.
     # @option options [Array<String>] :subnet_ids ([]) If your Lambda function accesses resources in a VPC, you provide
     #  this parameter identifying the list of subnet IDs. These must belong to the same VPC. You must provide at least
     #  one security group and one subnet ID to configure VPC access.
@@ -79,7 +79,7 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
       @timeout = options_with_defaults[:timeout]
 
       unless (options_with_defaults[:memory_size] % 64).zero? && (options_with_defaults[:memory_size] >= 128) &&
-             (options_with_defaults[:memory_size] <= 1536)
+             (options_with_defaults[:memory_size] <= 3008)
         raise ArgumentError, 'Invalid Memory Size.'
       end
       @memory_size = options_with_defaults[:memory_size]
