@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 $LOAD_PATH.unshift File.expand_path('../lib', __FILE__)
 require 'lambda_wrap/version'
 
@@ -15,8 +13,8 @@ Gem::Specification.new do |s|
   s.files         = Dir['lib/**/*.rb']
   s.platform      = Gem::Platform::RUBY
   s.require_paths = ['lib']
-  s.add_runtime_dependency('aws-sdk', '~> 2')
   s.add_runtime_dependency('activesupport', '~> 4')
+  s.add_runtime_dependency('aws-sdk', '~> 2')
   s.license = 'Apache-2.0'
-  s.required_ruby_version = '>= 1.9.3'
+  s.required_ruby_version = '>= 2.1'
 end
