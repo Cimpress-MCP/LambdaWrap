@@ -5,7 +5,7 @@ BlockLength:
   Enabled: false
 MethodLength:
   Enabled: true
-  Max: 50
+  Max: 60
 ClassLength:
   Enabled: true
   Max: 300
@@ -25,6 +25,8 @@ RegexpLiteral:
 CyclomaticComplexity:
   Enabled: true
   Max: 20
+Style/EndOfLine:
+  Enabled: false
 AllCops:
   TargetRubyVersion: 2.1
   Include:

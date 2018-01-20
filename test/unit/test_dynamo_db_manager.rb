@@ -934,11 +934,9 @@ class TestDynamoTable < Minitest::Test
               describe_table_response_table_updating1,
               describe_table_response_table_updating1,
               describe_table_response_valid1,
-
               # updated provisioned_throughput
               describe_table_response_table_updating2,
               describe_table_response_valid2,
-
               # deleted global secondary
               describe_table_response_table_updating3,
               describe_table_response_table_updating3,
@@ -946,7 +944,6 @@ class TestDynamoTable < Minitest::Test
               describe_table_response_table_updating3,
               describe_table_response_table_updating3,
               describe_table_response_valid3,
-
               # Updated Global secondary Index
               describe_table_response_table_updating4,
               describe_table_response_table_updating4,
@@ -954,7 +951,6 @@ class TestDynamoTable < Minitest::Test
               describe_table_response_table_updating4,
               describe_table_response_table_updating4,
               describe_table_response_valid4,
-
               # Created Global Secondary Index
               describe_table_response_table_updating5,
               describe_table_response_table_updating5,

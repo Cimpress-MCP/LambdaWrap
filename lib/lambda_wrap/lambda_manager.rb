@@ -33,13 +33,13 @@ module LambdaWrap
     #  provide at least one security group and one subnet ID.
     # @option options [Boolean] :delete_unreferenced_versions (true) Option to delete any Lambda Function Versions upon
     #  deployment that do not have an alias pointing to them.
+    # @option options [String] :dead_letter_queue_arn ('') The ARN of the SQS Queue for failed async invocations.
     def initialize(options)
       defaults = {
         description: 'Deployed with LambdaWrap', subnet_ids: [], security_group_ids: [], timeout: 30, memory_size: 128,
-        delete_unreferenced_versions: true
+        delete_unreferenced_versions: true, dead_letter_queue_arn: ''
       }
       options_with_defaults = options.reverse_merge(defaults)
-
       unless (options_with_defaults[:lambda_name]) && (options_with_defaults[:lambda_name].is_a? String)
         raise ArgumentError, 'lambda_name must be provided (String)!'
       end
@@ -73,17 +73,11 @@ module LambdaWrap
         raise ArgumentError, "Invalid Runtime specified: #{options_with_defaults[:runtime]}. Only accepts: \
 nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-edge"
       end
-
-      @description = options_with_defaults[:description]
-
-      @timeout = options_with_defaults[:timeout]
-
       unless (options_with_defaults[:memory_size] % 64).zero? && (options_with_defaults[:memory_size] >= 128) &&
              (options_with_defaults[:memory_size] <= 3008)
         raise ArgumentError, 'Invalid Memory Size.'
       end
       @memory_size = options_with_defaults[:memory_size]
-
       # VPC
       if options_with_defaults[:subnet_ids].empty? ^ options_with_defaults[:security_group_ids].empty?
         raise ArgumentError, 'Must supply values for BOTH Subnet Ids and Security Group ID if VPC is desired.'
@@ -94,8 +88,10 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
           security_group_ids: options_with_defaults[:security_group_ids]
         }
       end
-
+      @description = options_with_defaults[:description]
+      @timeout = options_with_defaults[:timeout]
       @delete_unreferenced_versions = options_with_defaults[:delete_unreferenced_versions]
+      @dead_letter_queue_arn = options_with_defaults[:dead_letter_queue_arn]
     end
 
     # Deploys the Lambda to the specified Environment. Creates a Lambda Function if one didn't exist.
@@ -187,7 +183,8 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
       options = {
         function_name: @lambda_name, runtime: @runtime, role: @role_arn, handler: @handler,
         code: { zip_file: File.binread(@path_to_zip_file) }, description: @description, timeout: @timeout,
-        memory_size: @memory_size, vpc_config: @vpc_configuration, publish: true
+        memory_size: @memory_size, vpc_config: @vpc_configuration, publish: true,
+        dead_letter_config: { target_arn: @dead_letter_queue_arn }
       }
       lambda_version = @client.create_function(options).version
       puts "Successfully created Lambda: #{@lambda_name}!"
@@ -204,7 +201,8 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
 
       options = {
         function_name: @lambda_name, role: @role_arn, handler: @handler, description: @description, timeout: @timeout,
-        memory_size: @memory_size, vpc_config: @vpc_configuration, runtime: @runtime
+        memory_size: @memory_size, vpc_config: @vpc_configuration, runtime: @runtime,
+        dead_letter_config: { target_arn: @dead_letter_queue_arn }
       }
 
       @client.update_function_configuration(options)
