@@ -69,6 +69,8 @@ module LambdaWrap
           "Only accepts: #{SUPPORTED_RUNTIMES}"
       end
 
+      @runtime = options_with_defaults[:runtime]
+
       unless (options_with_defaults[:memory_size] % 64).zero? && (options_with_defaults[:memory_size] >= 128) &&
              (options_with_defaults[:memory_size] <= 3008)
         raise ArgumentError, 'Invalid Memory Size.'
