@@ -25,7 +25,7 @@ RegexpLiteral:
 CyclomaticComplexity:
   Enabled: true
   Max: 20
-Style/EndOfLine:
+Layout/EndOfLine:
   Enabled: false
 AllCops:
   TargetRubyVersion: 2.1

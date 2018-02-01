@@ -64,15 +64,11 @@ module LambdaWrap
         raise ArgumentError, 'runtime must be provided (String)!'
       end
 
-      case options_with_defaults[:runtime]
-      when 'nodejs' then raise ArgumentError, 'AWS Lambda Runtime NodeJS v0.10.42 is deprecated as of April 2017. \
-        Please see: https://forums.aws.amazon.com/ann.jspa?annID=4142'
-      when 'nodejs4.3', 'nodejs6.10', 'java8', 'python2.7', 'python3.6', 'dotnetcore1.0', 'nodejs4.3-edge'
-        @runtime = options_with_defaults[:runtime]
-      else
-        raise ArgumentError, "Invalid Runtime specified: #{options_with_defaults[:runtime]}. Only accepts: \
-nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-edge"
+      unless SUPPORTED_RUNTIMES.include?(options_with_defaults[:runtime])
+        raise ArgumentError, "Invalid Runtime specified: #{options_with_defaults[:runtime]}." \
+          "Only accepts: #{SUPPORTED_RUNTIMES}"
       end
+
       unless (options_with_defaults[:memory_size] % 64).zero? && (options_with_defaults[:memory_size] >= 128) &&
              (options_with_defaults[:memory_size] <= 3008)
         raise ArgumentError, 'Invalid Memory Size.'
@@ -165,6 +161,18 @@ nodejs4.3, nodejs6.10, java8, python2.7, python3.6, dotnetcore1.0, or nodejs4.3-
     end
 
     private
+
+    SUPPORTED_RUNTIMES = [
+      'nodejs4.3',
+      'nodejs6.10',
+      'java8',
+      'python2.7',
+      'python3.6',
+      'dotnetcore1.0',
+      'dotnetcore2.0',
+      'nodejs4.3-edge',
+      'go1.x'
+    ].freeze
 
     def retrieve_lambda_details
       lambda_details = nil
