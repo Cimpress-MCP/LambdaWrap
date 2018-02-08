@@ -1,5 +1,6 @@
 require 'set'
 require 'pathname'
+require 'active_support/core_ext/object/blank'
 
 module LambdaWrap
   # Lambda Manager class.
@@ -193,9 +194,10 @@ module LambdaWrap
       options = {
         function_name: @lambda_name, runtime: @runtime, role: @role_arn, handler: @handler,
         code: { zip_file: File.binread(@path_to_zip_file) }, description: @description, timeout: @timeout,
-        memory_size: @memory_size, vpc_config: @vpc_configuration, publish: true,
-        dead_letter_config: { target_arn: @dead_letter_queue_arn }
+        memory_size: @memory_size, vpc_config: @vpc_configuration, publish: true
       }
+      options[:dead_letter_config] = { target_arn: @dead_letter_queue_arn } unless @dead_letter_queue_arn.blank?
+
       lambda_version = @client.create_function(options).version
       puts "Successfully created Lambda: #{@lambda_name}!"
       lambda_version
@@ -211,9 +213,9 @@ module LambdaWrap
 
       options = {
         function_name: @lambda_name, role: @role_arn, handler: @handler, description: @description, timeout: @timeout,
-        memory_size: @memory_size, vpc_config: @vpc_configuration, runtime: @runtime,
-        dead_letter_config: { target_arn: @dead_letter_queue_arn }
+        memory_size: @memory_size, vpc_config: @vpc_configuration, runtime: @runtime
       }
+      options[:dead_letter_config] = { target_arn: @dead_letter_queue_arn } unless @dead_letter_queue_arn.blank?
 
       @client.update_function_configuration(options)
 
